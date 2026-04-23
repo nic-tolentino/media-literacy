@@ -24,11 +24,16 @@ We will implement the "Logic Master" persona:
 *   **Chat History**: Implement a simple message list in the `ChatScreen` that maintains context during a session.
 *   **Streaming Output**: (Optional P1) Update the UI to show tokens as they arrive for a better UX.
 
-## 5. UI Polishing (Visual Design)
-To improve the "terrible" look:
-*   **Glassmorphism**: Apply subtle transparency and blurs to cards.
-*   **Typography**: Ensure we are using the "Inter" or "Outfit" font family as planned.
-*   **Dynamic Colors**: Ensure the "Clarity Blue" is consistent across the intake buttons.
+## 5. UI Polishing (Stitch Clarity & Trust Design System)
+We will implement the exact Light Theme design specified in your MCP Stitch assets (and the attached references):
+*   **Typography**: Integrate **Noto Serif** for headlines to provide an editorial/newsprint feel, and **Work Sans** for highly legible body text and labels.
+*   **Colors (Light Theme)**:
+    *   `Primary`: `#3F51B5` (Indigo/Blue for main 'News Decoder' branding and primary actions).
+    *   `Secondary`: `#4DB6AC` (Teal for secondary active actions like 'Scan Newspaper').
+    *   `Tertiary`: `#F8F9FA` (Off-white for backgrounds).
+    *   `Negative/Record`: A distinct crimson red for the audio recording button.
+    *   `Text/Neutral`: `#212121` for strong contrast against the light backgrounds.
+*   **Component Styling**: Implement standard pill-shaped or softly rounded (e.g., 12dp) cards with clean lines, dropping the dark glassmorphism approach for a crisp, transparent "News Decoder" aesthetic.
 
 ## 6. Success Metrics
 *   The `OnboardingScreen` progress bar reflects a real network download.
