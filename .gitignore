@@ -1,0 +1,56 @@
+# Gradle
+.gradle/
+build/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Local configuration (contains SDK paths, secrets)
+local.properties
+
+# IDE - IntelliJ / Android Studio
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+captures/
+
+# Android
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# iOS / Xcode
+iosApp/Pods/
+iosApp/*.xcworkspace/
+iosApp/xcuserdata/
+iosApp/**/*.xcuserstate
+iosApp/**/xcuserdata/
+DerivedData/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+
+# Kotlin/Native
+*.klib
+*.kexe
+
+# Model weights (large binary assets — download at runtime)
+*.task
+*.tflite
+*.bin
+*.gguf
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Sensitive / environment
+*.env
+secrets.properties
