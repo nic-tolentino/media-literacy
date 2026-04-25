@@ -14,9 +14,20 @@ import kotlinx.coroutines.yield
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * The central orchestration engine for the Media Literacy Dashboard.
+ *
+ * This class manages the [InferenceState] lifecycle and bridges the gap between the raw 
+ * [LlmEngine] and the UI. It handles:
+ * 1. **Two-Stage Analysis**: Requesting an initial JSON summary followed by a deep fallacy scan.
+ * 2. **JSON Marshaling**: Extracting structured [AnalysisResult] data from model responses.
+ * 3. **Chat State**: Managing persistent multi-turn conversations through "Sticky Sessions".
+ */
 class GemmaOrchestrator(
     private val engine: LlmEngine = LlmEngine.getInstance()
 ) : ScreenModel {
+    
+    /** Configured for lenient parsing to handle model-generated formatting variations. */
     private val json = Json { 
         ignoreUnknownKeys = true 
         coerceInputValues = true
@@ -24,12 +35,15 @@ class GemmaOrchestrator(
     }
 
     private val _state = MutableStateFlow<InferenceState>(InferenceState.Idle)
+    
+    /** Public observable state for UI reaction. */
     val state: StateFlow<InferenceState> = _state.asStateFlow()
 
     private var lastAnalyzedInput: String? = null
     private var lastAnalysisResult: AnalysisResult = createDefaultResult()
     private var deepAnalysisJob: Job? = null
 
+    /** Requests a structured JSON report covering summary, highlights, and 4-axis metrics. */
     private val summaryPrompt = """
         <|turn|>user
         You are a Media Literacy Guide. Analyze the following text and provide a structured JSON report.
@@ -49,6 +63,7 @@ class GemmaOrchestrator(
         Text:
     """.trimIndent()
 
+    /** Requests a specific scan for exactly 3 logical fallacies. */
     private val deepAnalysisPrompt = """
         <|turn|>user
         As a Logic Master, dive deeper into the text. 
@@ -77,6 +92,12 @@ class GemmaOrchestrator(
         return engine.generatePersistentStreaming(prompt, isFirstTurn)
     }
 
+    /**
+     * Triggers the full structural analysis pipeline.
+     * Executes in two stages:
+     * 1. **Summary Stage**: Generates the executive summary and Truth Radar scores.
+     * 2. **Fallacy Stage**: Enriches the result with deep logical pattern analysis.
+     */
     fun startAnalysis(input: String) {
         if (_state.value is InferenceState.Complete && lastAnalyzedInput == input) return
         
@@ -123,6 +144,10 @@ class GemmaOrchestrator(
         }
     }
 
+    /**
+     * Generates a chat response using the model's active knowledge session.
+     * Includes logic to sanitize and filter internal Chain-of-Thought tags for the final UI display.
+     */
     fun generateChatResponse(userMessage: String, onUpdate: (String) -> Unit, onComplete: (String) -> Unit) {
         deepAnalysisJob?.cancel()
 
@@ -133,11 +158,11 @@ class GemmaOrchestrator(
                 var fullResponse = ""
                 persistentFlow(chatPrompt, isFirstTurn = false).collect { token ->
                     fullResponse += token
-                    val cleaned = fullResponse.replace(Regex("<\\|think\\|>[\\s\\S]*?</\\|think\\|>"), "").trim()
+                    val cleaned = fullResponse.replace(Regex("<\\|think\\|>[\\s\\S]*?\\*?\\/\\|think\\|>"), "").trim()
                     onUpdate(cleaned)
                 }
                 
-                val finalDisplay = fullResponse.replace(Regex("<\\|think\\|>[\\s\\S]*?</\\|think\\|>"), "").trim()
+                val finalDisplay = fullResponse.replace(Regex("<\\|think\\|>[\\s\\S]*?\\*?\\/\\|think\\|>"), "").trim()
                 onComplete(finalDisplay)
             } catch (e: Exception) {
                 fallbackChatResponse(userMessage, onUpdate, onComplete)
@@ -169,6 +194,10 @@ class GemmaOrchestrator(
         onComplete(fullText.trim())
     }
 
+    /**
+     * Extracts a structured [AnalysisResult] from the model's raw string response.
+     * Uses a boundary-finding algorithm to isolate the JSON block from potential markdown decorations.
+     */
     private fun parseInterimSummary(raw: String): AnalysisResult {
         println("RAW_OUTPUT_FULL ->\n$raw")
 
@@ -227,6 +256,7 @@ class GemmaOrchestrator(
         return fallacies
     }
 
+    /** Mock Model weight download progress simulation. */
     fun downloadModel() {
         screenModelScope.launch {
             _state.value = InferenceState.DownloadingModel(0f)

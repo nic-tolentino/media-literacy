@@ -1,61 +1,43 @@
-# Gemma4ML Architecture & Design Decisions
+# Gemma 4: Media Literacy Engine Architecture
 
-This document outlines the high-level architecture of the Gemma4ML project, preserving the "why" behind the technical implementation for future developers and AI models.
+This document outlines the high-level architecture of the Media Literacy Engine, preserving the "why" behind the technical implementation for future developers and AI models.
 
 ## 1. Core Architectural Patterns
 
-### 7. Development Fallback & Hybrid Engine
+### Sticky-Session Actor Pattern
+To support complex multi-turn conversations (Analysis ➡️ Chat), the engine utilizes a **Persistent Actor Pattern**:
+*   **Context Continuity**: The `LlmEngine` maintains a single, active `Conversation` handle. This ensures that the model "remembers" the initial article analysis during subsequent chat interactions, preventing context fragmentation.
+*   **Mutex Gating**: Native handles in LiteRT-LM are inherently single-threaded. We implement a **Mutex-locked lifecycle** in `AndroidLlmEngine` to prevent simultaneous inference commands and safeguard against SIGSEGV (Segmentation Fault) crashes during rapid UI navigation.
 
-To enable rapid UI development and testing across environments without requiring 1.2GB of model weights, the `AndroidLlmEngine` implements a **Hybrid Logic**:
-
-*   **Real Mode**: Triggered automatically if `gemma.task` is present in the app's internal storage (`filesDir`). Uses MediaPipe for on-device inference.
-*   **Stub Mode (Developer Fallback)**: Triggered if the model file is missing. It mimics the behavior of the real model by streaming a high-fidelity mock response, including `<|think|>` blocks and structured JSON.
-
-This allows for:
-*   Full UI/UX validation without large downloads.
-*   Testing of the `InferenceState` lifecycle (Idle -> Thinking -> Complete).
-*   Deterministic verification of the "Thinking Mode" layout.
-
-### Clean Architecture & MVI
-We follow a Clean Architecture approach to isolate the AI domain logic from the UI.
-*   **Domain Layer (`commonMain/kotlin/org/medialiteracy/domain`)**: Contains the business logic, state machines (`GemmaOrchestrator`), and interfaces (`LlmEngine`).
-*   **UI Layer (`commonMain/kotlin/org/medialiteracy/ui`)**: Built with Compose Multiplatform, observing states from the domain layer.
+### The JSON Data Paradigm
+The engine has transitioned from "Informal Text Parsing" to a **Formal JSON extraction model**:
+*   **Structured Precision**: We use `kotlinx-serialization` to define a strict schema for analytical results (Logic, Evidence, Credibility, Objectivity).
+*   **Prompt Alignment**: The analytical prompts explicitly request JSON responses, which are then extracted using a "Boundary-Finder" logic (isolating the `{...}` block). This eliminates the fragility of regex-based parsing prone to markdown formatting errors.
 
 ### State-Driven UI (`InferenceState`)
 The app's behavior is modeled as a **Sealed Interface** representing the lifecycle of local AI inference:
-*   `Idle`: The engine is ready.
-*   `DownloadingModel(progress)`: Represents the one-time weight retrieval. **Note**: This was converted from a singleton `data object` to a `data class` to support immutable progress updates.
-*   `Thinking(tokens)`: Represents the "Chain-of-Thought" generation (`<|think|>` tokens).
-*   `Complete(AnalysisResult)`: The final structured output.
+*   `Idle`: The engine is ready for input.
+*   `Thinking(tokens)`: Represents the real-time "Chain-of-Thought" generation.
+*   `Complete(AnalysisResult)`: The final structured output, including Truth Radar scores and logic highlights.
 
 ## 2. Multiplatform AI Bridge (`LlmEngine`)
-To support the "Logic Master" cross-platform while acknowledging the native hardware complexity:
-*   **Expect/Actual Pattern**: We define an `LlmEngine` interface in `commonMain`.
-*   **Android Target**: Wires to Google's **MediaPipe LLM Inference API** (LiteRT).
-*   **iOS Target**: Currently a **No-Op stub** that returns dummy data synchronously. This allows us to demonstrate a beautiful UI on iOS without fighting early Swift/C++ CInterop linking errors during the hackathon phase.
+*   **Expect/Actual Pattern**: We define a common `LlmEngine` interface.
+*   **Android Implementation**: Utilizes the **LiteRT-LM Android SDK (0.10.0)**. It supports multi-path model discovery (checking internal cache, external storage, and legacy file paths).
+*   **iOS Implementation**: Currently a high-fidelity stub for UI demonstration, planned for native Swift c-interop integration.
 
-## 3. Navigation & User Journey
-We use the **Voyager** library for navigation.
-
-### The Journey Path
-1.  **Onboarding**: Checks for local model weights. If missing, triggers a download simulation from public cloud storage (GCS) to avoid Kaggle API key friction.
-2.  **TabHost**: The main entry point following onboarding. Contains **Home**, **Learn**, and **Settings** tabs.
-3.  **HomeScreen**: The intake center. Provides stubs for OCR (Camera), Audio recording, and Text pasting.
-4.  **AnalysisScreen**: Pushed on top of the `TabHost` for an immersive experience. It takes the input text, calls `GemmaOrchestrator`, and observes the `InferenceState`.
-5.  **ChatScreen**: A full-screen dialog used to debate the analysis or generate "Steel-man" arguments.
+## 3. Orchestration (`GemmaOrchestrator`)
+The `GemmaOrchestrator` (Voyager `ScreenModel`) acts as the state manager and bridge:
+*   **Token Telemetry**: Monitors token-per-second flow and character counts to detect model halting.
+*   **Raw Output Surface**: In the event of a JSON parsing failure, the Orchestrator surfaces the raw model output to the UI for immediate developer diagnostics.
 
 ## 4. Key Infrastructure Decisions
 
-### Privacy & Data Sovereignty
-The app is **100% Offline-First**. All inference happens on the device CPU/GPU. No user data, news headlines, or captured text ever leaves the device. This provides a surveillance-free environment for users in restrictive media landscapes.
-
-### Dependency Management
-*   **Material3**: Pinned to stable `1.3.1` to prevent breaking changes during the hackathon.
-*   **KMP Wizard**: Used for the initial Gradle project structure to ensure a stable Kotlin 2.0+ build environment.
-*   **ScreenModel**: We use Voyager's `ScreenModel` for state management, providing a lifecycle-aware bridge between Compose and our `GemmaOrchestrator`.
+### Model Lifecycle
+*   **Context Window**: Locked to **4096 tokens** to support deep-dive analysis of long-form journalism without truncation.
+*   **Native Optimization**: Inference is offloaded to the device CPU/GPU through the LiteRT-LM backend, ensuring 100% offline privacy and zero latency from network round-trips.
 
 ## 5. Security & Permissions
-The following platform-specific permissions are strictly required for the multimodal engine:
-*   `CAMERA`: For news OCR.
-*   `RECORD_AUDIO`: For radio/speech capture.
-*   `INTERNET`: Exclusively for the initial ~1.5GB model weight download.
+The following platform-specific permissions are required for the multimodal engine:
+*   `CAMERA`: For upcoming Vision-based news OCR.
+*   `RECORD_AUDIO`: For real-time speech literacy analysis.
+*   `INTERNET`: Exclusively for the initial model weight download.

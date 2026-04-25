@@ -12,29 +12,51 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
+/**
+ * Android-specific implementation of the [LlmEngine], utilizing the LiteRT-LM SDK.
+ * 
+ * **CRITICAL ARCHITECTURE NOTE:**
+ * This class uses a **Mutex-locked Actor Pattern** to safeguard native C++ resources.
+ * LiteRT-LM handles are inherently single-threaded. Concurrent access to the [engine] 
+ * or [activeConversation] will cause non-deterministic SIGSEGV (Segmentation Fault) crashes.
+ * Always interact with the engine through the [mutex] gated methods.
+ */
 class AndroidLlmEngine : LlmEngine {
     private var engine: Engine? = null
+    
+    /** 
+     * Persistent handle for the active dialogue.
+     * Preserved across [generatePersistentStreaming] calls to maintain context continuity.
+     */
     private var activeConversation: Conversation? = null
     
     companion object {
         @Volatile
         private var instance: AndroidLlmEngine? = null
+        
+        /** Singleton accessor ensuring a single instance of the native engine weights. */
         fun getInstance(): AndroidLlmEngine = instance ?: synchronized(this) {
             instance ?: AndroidLlmEngine().also { instance = it }
         }
     }
 
+    /**
+     * Locates and initializes the LiteRT-LM model weights.
+     * Iterates through multiple potential storage paths (Internal, External, and Debug Root).
+     * 
+     * @param context Must be an Android [Context].
+     */
     override fun initialize(context: Any) {
         if (engine != null) return
         val appContext = context as Context
         
         // Comprehensive search for the model file
         val potentialLocations = listOf(
-            File(appContext.filesDir, "gemma.litertlm"), // User's known good path
-            File(appContext.filesDir, "gemma.task"), // Internal
-            File(appContext.getExternalFilesDir(null), "gemma.task"), // External (ModelManager)
+            File(appContext.filesDir, "gemma.litertlm"),
+            File(appContext.filesDir, "gemma.task"),
+            File(appContext.getExternalFilesDir(null), "gemma.task"),
             File(appContext.getExternalFilesDir(null), "gemma.litertlm"),
-            File("/data/local/tmp/gemma-2b-it-cpu-int4.bin"), // Manual adb push root
+            File("/data/local/tmp/gemma-2b-it-cpu-int4.bin"),
             File("/data/local/tmp/gemma.task"),
             File("/data/local/tmp/gemma.litertlm")
         )
@@ -45,7 +67,6 @@ class AndroidLlmEngine : LlmEngine {
             if (modelFile == null) {
                 val searchedPaths = potentialLocations.joinToString("\n") { "- ${it.absolutePath}" }
                 android.util.Log.e("GemmaEngine", "Model not found. Searched:\n$searchedPaths")
-                // We keep engine null, but we'll throw an informative error later
                 return 
             }
 
@@ -55,13 +76,13 @@ class AndroidLlmEngine : LlmEngine {
             val config = EngineConfig(
                 modelPath = modelPath,
                 backend = Backend.CPU(),
-                maxNumTokens = 4096 // Restored to user's working configuration
+                maxNumTokens = 4096 // Context window size for deep-dive analysis.
             )
 
             engine = Engine(config).apply {
                 initialize()
             }
-            android.util.Log.i("GemmaEngine", "LiteRT-LM Engine initialized successfully with 4096 context window")
+            android.util.Log.i("GemmaEngine", "LiteRT-LM Engine initialized successfully")
         } catch (e: Exception) {
             android.util.Log.e("GemmaEngine", "Failed to initialize LiteRT-LM: ${e.message}")
         }
@@ -73,8 +94,9 @@ class AndroidLlmEngine : LlmEngine {
             .joinToString("") { it.text }
     }
 
+    /** Stateless streaming. Creates a fresh conversation for every call. */
     override fun generateStreaming(prompt: String): Flow<String> {
-        val eng = engine ?: throw Exception("Engine not initialized. Check if the model exists in the app's files or /data/local/tmp/.")
+        val eng = engine ?: throw Exception("Engine not initialized.")
         val conversation = eng.createConversation()
         
         return conversation.sendMessageAsync(prompt)
@@ -87,6 +109,13 @@ class AndroidLlmEngine : LlmEngine {
 
     private val mutex = kotlinx.coroutines.sync.Mutex()
 
+    /**
+     * Stateful streaming via "Sticky Sessions".
+     * Maintains the [activeConversation] handle across multiple calls to ensure 
+     * the model remembers previous turns (e.g. Analysis -> Q&A).
+     * 
+     * @param isFirstTurn If true, resets the current conversation history.
+     */
     override fun generatePersistentStreaming(prompt: String, isFirstTurn: Boolean): Flow<String> = kotlinx.coroutines.flow.callbackFlow {
         val eng = engine ?: throw Exception("Engine not initialized")
         
@@ -124,9 +153,10 @@ class AndroidLlmEngine : LlmEngine {
             this@callbackFlow.close(e)
         }
         
-        awaitClose { /* Persist convo */ }
+        awaitClose { /* Persist convo across flow closures */ }
     }
 
+    /** Blocking response generation. */
     override suspend fun generateResponse(prompt: String): String {
         return withContext(Dispatchers.Default) {
             val eng = engine ?: throw Exception("Engine not initialized")
@@ -137,10 +167,12 @@ class AndroidLlmEngine : LlmEngine {
         }
     }
 
+    /** Vision-enabled analytical stub for upcoming multimodal support. */
     override suspend fun analyzeMultimodal(input: ByteArray, type: InputType): AnalysisResult {
         throw Exception("Multimodal analysis is coming in a future update...")
     }
 
+    /** Releases all native engine and conversation resources. */
     override fun close() {
         activeConversation?.close()
         engine?.close()
@@ -149,4 +181,5 @@ class AndroidLlmEngine : LlmEngine {
     }
 }
 
+/** Entry point for the platform-specific actual implementation. */
 actual fun getLlmEngine(): LlmEngine = AndroidLlmEngine.getInstance()
