@@ -5,8 +5,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -41,13 +44,45 @@ class PasteInputScreen : Screen {
                     .padding(padding)
                     .padding(24.dp)
             ) {
-                Text(
-                    "Article Text",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Gray
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Article Text",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Gray
+                    )
+                    
+                    Text(
+                        "TEST SAMPLES",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF3F51B5),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 Spacer(modifier = Modifier.height(8.dp))
+
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 12.dp)
+                ) {
+                    items(SampleArticles.all) { article ->
+                        AssistChip(
+                            onClick = { text = article.content },
+                            label = { Text(article.title) },
+                            colors = AssistChipDefaults.assistChipColors(
+                                labelColor = Color(0xFF3F51B5)
+                            ),
+                            border = AssistChipDefaults.assistChipBorder(
+                                borderColor = Color(0xFF3F51B5),
+                                borderWidth = 1.dp
+                            )
+                        )
+                    }
+                }
                 
                 OutlinedTextField(
                     value = text,
