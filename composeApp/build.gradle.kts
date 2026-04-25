@@ -31,7 +31,7 @@ kotlin {
             dependencies {
                 implementation(libs.compose.uiToolingPreview)
                 implementation(libs.androidx.activity.compose)
-                // New high-performance LiteRT-LM SDK for Gemma 4 (.litertlm support)
+                // HACKATHON REQUIREMENT: Use the LiteRT-LM (AI Edge) SDK
                 implementation("com.google.ai.edge.litertlm:litertlm-android:0.10.0")
             }
         }

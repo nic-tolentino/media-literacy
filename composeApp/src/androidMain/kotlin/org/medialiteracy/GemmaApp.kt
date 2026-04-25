@@ -7,7 +7,7 @@ import org.medialiteracy.domain.initializeModelManager
 class GemmaApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        LlmEngine.initialize(this)
+        LlmEngine.getInstance().initialize(this)
         initializeModelManager(this)
     }
 }

@@ -1,194 +1,152 @@
 package org.medialiteracy.domain
 
 import android.content.Context
-import com.google.ai.edge.litertlm.Backend
-import com.google.ai.edge.litertlm.Content
-import com.google.ai.edge.litertlm.Contents
-import com.google.ai.edge.litertlm.Conversation
-import com.google.ai.edge.litertlm.ConversationConfig
-import com.google.ai.edge.litertlm.Engine
-import com.google.ai.edge.litertlm.EngineConfig
-import com.google.ai.edge.litertlm.ExperimentalApi
-import com.google.ai.edge.litertlm.Message
-import com.google.ai.edge.litertlm.MessageCallback
-import kotlinx.coroutines.*
+import com.google.ai.edge.litertlm.*
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
-import java.util.concurrent.CancellationException
 
-@OptIn(ExperimentalApi::class)
 class AndroidLlmEngine : LlmEngine {
     private var engine: Engine? = null
-    private var conversation: Conversation? = null
-    private var context: Context? = null
-    private var initializationError: String? = null
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var activeConversation: Conversation? = null
+    
+    companion object {
+        @Volatile
+        private var instance: AndroidLlmEngine? = null
+        fun getInstance(): AndroidLlmEngine = instance ?: synchronized(this) {
+            instance ?: AndroidLlmEngine().also { instance = it }
+        }
+    }
 
-    override fun init(context: Any) {
-        this.context = context as Context
+    override fun initialize(context: Any) {
+        if (engine != null) return
+        val appContext = context as Context
+        
+        // Comprehensive search for the model file
+        val potentialLocations = listOf(
+            File(appContext.filesDir, "gemma.litertlm"), // User's known good path
+            File(appContext.filesDir, "gemma.task"), // Internal
+            File(appContext.getExternalFilesDir(null), "gemma.task"), // External (ModelManager)
+            File(appContext.getExternalFilesDir(null), "gemma.litertlm"),
+            File("/data/local/tmp/gemma-2b-it-cpu-int4.bin"), // Manual adb push root
+            File("/data/local/tmp/gemma.task"),
+            File("/data/local/tmp/gemma.litertlm")
+        )
+
+        val modelFile = potentialLocations.find { it.exists() }
+        
         try {
-            System.loadLibrary("litertlm_jni")
-            println("Gemma4ML: Native LiteRT-LM library loaded successfully")
-        } catch (e: Exception) {
-            println("Gemma4ML: Warning - Manual library load failed: ${e.message}")
-        }
-    }
-
-    private suspend fun ensureInitialized(): Conversation? {
-        if (conversation != null) return conversation
-        
-        val ctx = context ?: return null
-        val modelFile = File(ctx.filesDir, "gemma.litertlm")
-        
-        if (!modelFile.exists()) {
-            initializationError = "File not found at ${modelFile.absolutePath}"
-            return null
-        }
-
-        return withContext(Dispatchers.IO) {
-            try {
-                println("Gemma4ML: Initializing LiteRT-LM Engine...")
-                
-                // Try GPU first for 6x faster prefill, fallback to CPU
-                var selectedBackend: Backend = Backend.CPU()
-                try {
-                    //selectedBackend = Backend.GPU() // this line causes a native crash
-                    println("Gemma4ML: Attempting High-Speed GPU acceleration...")
-                } catch (e: Exception) {
-                    println("Gemma4ML: GPU not available, falling back to CPU: ${e.message}")
-                }
-
-                val engineConfig = EngineConfig(
-                    modelPath = modelFile.absolutePath,
-                    backend = selectedBackend,
-                    maxNumTokens = 4096
-                )
-                
-                val newEngine = Engine(engineConfig)
-                newEngine.initialize()
-                
-                val newConversation = newEngine.createConversation(
-                    ConversationConfig()
-                )
-                
-                engine = newEngine
-                conversation = newConversation
-                println("Gemma4ML: LiteRT-LM Engine initialized successfully!")
-                newConversation
-            } catch (e: Exception) {
-                initializationError = "FAILED_TO_CREATE_LITERT_ENGINE: ${e.message}"
-                println("Gemma4ML: ERROR during LiteRT engine creation: ${e.message}")
-                e.printStackTrace()
-                null
+            if (modelFile == null) {
+                val searchedPaths = potentialLocations.joinToString("\n") { "- ${it.absolutePath}" }
+                android.util.Log.e("GemmaEngine", "Model not found. Searched:\n$searchedPaths")
+                // We keep engine null, but we'll throw an informative error later
+                return 
             }
-        }
-    }
 
-    override fun generateStreaming(prompt: String): Flow<String> = callbackFlow {
-        val currentConversation = ensureInitialized()
-        
-        if (currentConversation == null) {
-            val mockThoughts = listOf(
-                "<|think|>\n", 
-                "ERROR: ${initializationError ?: "LiteRT Engine Init Failed"}\n",
-                "</|think|>\n"
+            val modelPath = modelFile.absolutePath
+            android.util.Log.i("GemmaEngine", "Loading model from: $modelPath")
+
+            val config = EngineConfig(
+                modelPath = modelPath,
+                backend = Backend.CPU(),
+                maxNumTokens = 4096 // Restored to user's working configuration
             )
-            mockThoughts.forEach { trySend(it); delay(50) }
-            """{"summary": "Engine Offline. Check terminal logs for LiteRT-LM error."}""".forEach {
-                trySend(it.toString()); delay(5)
+
+            engine = Engine(config).apply {
+                initialize()
             }
-            close()
-            return@callbackFlow
-        }
-
-        var isThinking = false
-        currentConversation.sendMessageAsync(
-            Contents.of(Content.Text(prompt)),
-            object : MessageCallback {
-                override fun onMessage(message: Message) {
-                    val thinkingSnippet = message.channels["thought"]
-                    if (thinkingSnippet != null && thinkingSnippet.isNotEmpty()) {
-                        // Enter thinking mode if not already in it
-                        if (!isThinking) {
-                            trySend("<|think|>\n")
-                            isThinking = true
-                        }
-                        trySend(thinkingSnippet)
-                    } else {
-                        // Exit thinking mode before sending final content
-                        if (isThinking) {
-                            trySend("\n</|think|>\n\n")
-                            isThinking = false
-                        }
-                        trySend(message.toString())
-                    }
-                }
-
-                override fun onDone() {
-                    if (isThinking) {
-                        trySend("\n</|think|>\n")
-                        isThinking = false
-                    }
-                    close()
-                }
-
-                override fun onError(throwable: Throwable) {
-                    if (isThinking) {
-                        trySend("\n</|think|>\n")
-                    }
-                    if (throwable is CancellationException) {
-                        close()
-                    } else {
-                        trySend("\n[ENGINE_ERROR: ${throwable.message}]\n")
-                        close()
-                    }
-                }
-            }
-        )
-        
-        awaitClose { }
-    }
-
-    override suspend fun generateResponse(prompt: String): String = withContext(Dispatchers.IO) {
-        val currentConversation = ensureInitialized() ?: return@withContext "Engine Error"
-        val deferred = CompletableDeferred<String>()
-        var fullText = ""
-        
-        currentConversation.sendMessageAsync(
-            Contents.of(Content.Text(prompt)),
-            object : MessageCallback {
-                override fun onMessage(message: Message) {
-                    fullText += message.toString()
-                }
-                override fun onDone() {
-                    deferred.complete(fullText)
-                }
-                override fun onError(throwable: Throwable) {
-                    deferred.completeExceptionally(throwable)
-                }
-            }
-        )
-        try {
-            deferred.await()
+            android.util.Log.i("GemmaEngine", "LiteRT-LM Engine initialized successfully with 4096 context window")
         } catch (e: Exception) {
-            "Mock Response"
+            android.util.Log.e("GemmaEngine", "Failed to initialize LiteRT-LM: ${e.message}")
         }
     }
 
-    override suspend fun analyzeMultimodal(input: ByteArray, type: InputType): AnalysisResult = withContext(Dispatchers.IO) {
-        delay(2000)
-        AnalysisResult(
-            summary = "Multimodal analysis simulation",
-            highlights = emptyList(),
-            fallacies = emptyList(),
-            toneScore = 3,
-            evidenceQuality = 50,
-            credibility = "Simulation"
-        )
+    private fun extractText(message: Message): String {
+        return message.contents.contents
+            .filterIsInstance<Content.Text>()
+            .joinToString("") { it.text }
+    }
+
+    override fun generateStreaming(prompt: String): Flow<String> {
+        val eng = engine ?: throw Exception("Engine not initialized. Check if the model exists in the app's files or /data/local/tmp/.")
+        val conversation = eng.createConversation()
+        
+        return conversation.sendMessageAsync(prompt)
+            .map { extractText(it) }
+            .catch { e -> 
+                android.util.Log.e("GemmaEngine", "Streaming error: ${e.message}")
+                emit("Error in generation stream.")
+            }
+    }
+
+    private val mutex = kotlinx.coroutines.sync.Mutex()
+
+    override fun generatePersistentStreaming(prompt: String, isFirstTurn: Boolean): Flow<String> = kotlinx.coroutines.flow.callbackFlow {
+        val eng = engine ?: throw Exception("Engine not initialized")
+        
+        mutex.withLock {
+            if (isFirstTurn || activeConversation == null) {
+                activeConversation?.close()
+                activeConversation = eng.createConversation()
+            }
+        }
+        
+        val convo = activeConversation ?: throw Exception("Failed to create conversation")
+        var charCount = 0
+        var chunkCount = 0
+        
+        try {
+            convo.sendMessageAsync(prompt).collect { message ->
+                if (convo.isAlive == false) {
+                    this@callbackFlow.close()
+                    return@collect
+                }
+                val text = extractText(message)
+                charCount += text.length
+                chunkCount++
+                
+                if (chunkCount % 10 == 0) {
+                    android.util.Log.d("GemmaEngine", "Stream Progress: $chunkCount chunks, $charCount chars")
+                }
+                
+                trySend(text)
+            }
+            android.util.Log.i("GemmaEngine", "Stream complete. Total: $charCount chars")
+            this@callbackFlow.close()
+        } catch (e: Exception) {
+            android.util.Log.e("GemmaEngine", "Persistent streaming error: ${e.message}")
+            this@callbackFlow.close(e)
+        }
+        
+        awaitClose { /* Persist convo */ }
+    }
+
+    override suspend fun generateResponse(prompt: String): String {
+        return withContext(Dispatchers.Default) {
+            val eng = engine ?: throw Exception("Engine not initialized")
+            eng.createConversation().use { conversation ->
+                val response = conversation.sendMessage(prompt)
+                extractText(response)
+            }
+        }
+    }
+
+    override suspend fun analyzeMultimodal(input: ByteArray, type: InputType): AnalysisResult {
+        throw Exception("Multimodal analysis is coming in a future update...")
+    }
+
+    override fun close() {
+        activeConversation?.close()
+        engine?.close()
+        engine = null
+        activeConversation = null
     }
 }
 
-private val engine = AndroidLlmEngine()
-actual fun getLlmEngine(): LlmEngine = engine
+actual fun getLlmEngine(): LlmEngine = AndroidLlmEngine.getInstance()

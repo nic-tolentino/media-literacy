@@ -1,107 +1,240 @@
 package org.medialiteracy.domain
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.decodeFromString
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.delay
 import cafe.adriel.voyager.core.model.ScreenModel
-
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import cafe.adriel.voyager.core.model.screenModelScope
+import kotlinx.coroutines.yield
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 
 class GemmaOrchestrator(
     private val engine: LlmEngine = LlmEngine.getInstance()
 ) : ScreenModel {
+    private val json = Json { 
+        ignoreUnknownKeys = true 
+        coerceInputValues = true
+        isLenient = true
+    }
+
     private val _state = MutableStateFlow<InferenceState>(InferenceState.Idle)
     val state: StateFlow<InferenceState> = _state.asStateFlow()
 
-    private val systemPrompt = """
-        You are a Media Literacy Logic Expert. Your goal is to deconstruct arguments, identify logical fallacies, and evaluate evidence.
-        Use strict logical reasoning. 
-        MANDATORY: You must start your response with an internal chain-of-thought enclosed in <|think|> tags.
-        Analyze the following input:
+    private var lastAnalyzedInput: String? = null
+    private var lastAnalysisResult: AnalysisResult = createDefaultResult()
+    private var deepAnalysisJob: Job? = null
+
+    private val summaryPrompt = """
+        <|turn|>user
+        You are a Media Literacy Guide. Analyze the following text and provide a structured JSON report.
+        Strictly return ONLY a valid JSON object matching this schema:
+        {
+          "summary": "Short 2-sentence executive summary.",
+          "highlights": ["Key Insight 1", "Key Insight 2"],
+          "objectivityScore": 0-100,
+          "logicScore": 0-100,
+          "evidenceQuality": 0-100,
+          "credibilityScore": 0-100,
+          "credibility": "e.g. Balanced",
+          "primaryStrength": "e.g. Logic",
+          "observationArea": "e.g. Tone"
+        }
+        
+        Text:
     """.trimIndent()
 
-    private val steelManPrompt = """
-        You are a Logic Master. Create a 'Steel-Man' argument for the OPPOSING view of the text provided.
-        Construct the strongest, most rational, and evidence-based version of the counter-argument.
-        MANDATORY: Start with <|think|> and identify the strongest counter-points.
-        Input text to counter:
+    private val deepAnalysisPrompt = """
+        <|turn|>user
+        As a Logic Master, dive deeper into the text. 
+        Identify exactly 3 significant rhetorical patterns or logical fallacies. 
+        Format EACH as: 
+        #### [N]. [Name]
+        * **Instance:** [Quote]
+        * **Analysis:** [Logic Deconstruction]
     """.trimIndent()
+
+    private fun createDefaultResult() = AnalysisResult(
+        summary = "Analytical engine initializing...",
+        highlights = emptyList(),
+        fallacies = emptyList(),
+        objectivityScore = 0,
+        logicScore = 0,
+        evidenceQuality = 0,
+        credibility = "Analyzing...",
+        credibilityScore = 0,
+        primaryStrength = "Scanning...",
+        observationArea = "Scanning...",
+        isAnalyzingFallacies = false
+    )
+
+    private fun persistentFlow(prompt: String, isFirstTurn: Boolean): Flow<String> {
+        return engine.generatePersistentStreaming(prompt, isFirstTurn)
+    }
 
     fun startAnalysis(input: String) {
-        screenModelScope.launch {
+        if (_state.value is InferenceState.Complete && lastAnalyzedInput == input) return
+        
+        deepAnalysisJob?.cancel()
+        lastAnalysisResult = createDefaultResult()
+
+        deepAnalysisJob = screenModelScope.launch {
             try {
-                // Phase 1: Logic Deconstruction
-                val fullPrompt = "$systemPrompt\n\n$input"
-                var analysisResponse = ""
-                
-                engine.generateStreaming(fullPrompt).collect { token ->
-                    analysisResponse += token
-                    _state.value = InferenceState.Thinking(analysisResponse)
+                lastAnalyzedInput = input
+                _state.value = InferenceState.Thinking("Analyzing structure...")
+
+                val quickPrompt = "$summaryPrompt\n$input\n<|turn|>model\n"
+                var summaryResponse = ""
+                persistentFlow(quickPrompt, isFirstTurn = true).collect { token ->
+                    summaryResponse += token
+                    _state.value = InferenceState.Thinking(summaryResponse)
                 }
 
-                val initialResult = AnalysisResult(
-                    summary = analysisResponse,
-                    highlights = listOf("Critique of logical framing", "Analysis of emotional cues"),
-                    fallacies = listOf(
-                        Fallacy("Confirmation Bias", "Seeking only supporting evidence", "The text ignores 3 key datasets.")
-                    ),
-                    toneScore = 3,
-                    evidenceQuality = 55,
-                    credibility = "Limited"
-                )
+                lastAnalysisResult = parseInterimSummary(summaryResponse).copy(isAnalyzingFallacies = true)
+                _state.value = InferenceState.Complete(lastAnalysisResult)
 
-                // Phase 2: Steel-Man Generation (The Counter-Narrative)
-                _state.value = InferenceState.Thinking("Constructing strongest counter-argument...")
-                val steelManFullPrompt = "$steelManPrompt\n\n$input"
-                var steelManResponse = ""
-                
-                engine.generateStreaming(steelManFullPrompt).collect { token ->
-                    steelManResponse += token
-                    _state.value = InferenceState.Thinking("Steel-Manning: $steelManResponse")
+                yield()
+                delay(500) 
+
+                val deepPrompt = "$deepAnalysisPrompt\n<|turn|>model\n"
+                var deepResponse = ""
+                persistentFlow(deepPrompt, isFirstTurn = false).collect { token ->
+                    deepResponse += token
                 }
 
-                _state.value = InferenceState.Complete(
-                    initialResult.copy(steelMan = steelManResponse)
+                val finalFallacies = parseFallacies(deepResponse)
+                lastAnalysisResult = lastAnalysisResult.copy(
+                    fallacies = if (finalFallacies.isEmpty()) lastAnalysisResult.fallacies else finalFallacies,
+                    isAnalyzingFallacies = false
                 )
+                
+                _state.value = InferenceState.Complete(lastAnalysisResult)
 
             } catch (e: Exception) {
-                _state.value = InferenceState.Error(e.message ?: "Analysis sequence failed")
+                if (e !is kotlinx.coroutines.CancellationException) {
+                    _state.value = InferenceState.Error(e.message ?: "Analysis failed")
+                }
             }
         }
     }
 
+    fun generateChatResponse(userMessage: String, onUpdate: (String) -> Unit, onComplete: (String) -> Unit) {
+        deepAnalysisJob?.cancel()
+
+        screenModelScope.launch {
+            try {
+                val chatPrompt = "<|turn|>user\n$userMessage\nExpert Guidance:\n<|turn|>model\n"
+                
+                var fullResponse = ""
+                persistentFlow(chatPrompt, isFirstTurn = false).collect { token ->
+                    fullResponse += token
+                    val cleaned = fullResponse.replace(Regex("<\\|think\\|>[\\s\\S]*?</\\|think\\|>"), "").trim()
+                    onUpdate(cleaned)
+                }
+                
+                val finalDisplay = fullResponse.replace(Regex("<\\|think\\|>[\\s\\S]*?</\\|think\\|>"), "").trim()
+                onComplete(finalDisplay)
+            } catch (e: Exception) {
+                fallbackChatResponse(userMessage, onUpdate, onComplete)
+            }
+        }
+    }
+
+    private suspend fun fallbackChatResponse(message: String, onUpdate: (String) -> Unit, onComplete: (String) -> Unit) {
+        val result = lastAnalysisResult
+        val fallbackPrompt = """
+            <|turn|>user
+            You are a Logic Master. Use these previous findings to answer the question.
+            Note: Objectivity Score (0-100) measures neutrality.
+            
+            Context: ${lastAnalyzedInput?.take(500)}
+            Summary: ${result.summary}
+            Metrics: Logic ${result.logicScore}, Evidence ${result.evidenceQuality}, Objectivity ${result.objectivityScore}
+            
+            Question: $message
+            Expert Guidance:
+            <|turn|>model
+        """.trimIndent()
+        
+        var fullText = ""
+        engine.generateStreaming(fallbackPrompt).collect { token ->
+            fullText += token
+            onUpdate(fullText.trim())
+        }
+        onComplete(fullText.trim())
+    }
+
+    private fun parseInterimSummary(raw: String): AnalysisResult {
+        println("RAW_OUTPUT_FULL ->\n$raw")
+
+        return try {
+            val jsonStart = raw.indexOf("{")
+            val jsonEnd = raw.lastIndexOf("}") + 1
+            
+            if (jsonStart != -1 && jsonEnd > jsonStart) {
+                val jsonString = raw.substring(jsonStart, jsonEnd)
+                println("JSON_DEBUG_DUMP_START\n$jsonString\nJSON_DEBUG_DUMP_END")
+                
+                val parsed = json.decodeFromString<AnalysisResult>(jsonString)
+                
+                // Ensure values are derived correctly
+                parsed.copy(
+                    isAnalyzingFallacies = true
+                )
+            } else {
+                throw Exception("No valid JSON found")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("GemmaEngine", "JSON Parse Failed: ${e.message}")
+            
+            // EMERGENCY FALLBACK: Regex for absolute minimal stability
+            val logic = Regex("(?i)LOGIC[:\\s-*]+(\\d+)").find(raw)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+            val evidence = Regex("(?i)EVIDENCE[:\\s-*]+(\\d+)").find(raw)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+            val credibility = Regex("(?i)CREDIBILITY[:\\s-*]+(\\d+)").find(raw)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+            val objectivity = Regex("(?i)OBJECTIVITY[:\\s-*]+(\\d+)").find(raw)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+
+            AnalysisResult(
+                summary = "DEBUG: JSON FAIL. RAW:\n${raw.take(500)}",
+                highlights = listOf("Structural Integrity"),
+                fallacies = emptyList(),
+                objectivityScore = objectivity,
+                logicScore = logic,
+                evidenceQuality = evidence,
+                credibility = "Evaluated",
+                credibilityScore = credibility,
+                primaryStrength = "System",
+                observationArea = "Parsing",
+                isAnalyzingFallacies = true
+            )
+        }
+    }
+
+    private fun parseFallacies(raw: String): List<Fallacy> {
+        val fallacies = mutableListOf<Fallacy>()
+        val fallacyRegex = Regex("#### \\d+\\. ([^\\n]+)[\\s\\S]*?\\*\\s+\\*\\*Instance:\\*\\*\\s+([^\\n]+)[\\s\\S]*?\\*\\s+\\*\\*Analysis:\\*\\*\\s+([\\s\\S]*?)(?=####|###|Conclusion|$)")
+        fallacyRegex.findAll(raw).forEach { match ->
+            fallacies.add(Fallacy(
+                type = match.groupValues[1].trim(),
+                description = "Logical Fallacy Detected",
+                evidence = "${match.groupValues[2].trim()}\n\n${match.groupValues[3].trim()}"
+            ))
+        }
+        return fallacies
+    }
+
     fun downloadModel() {
         screenModelScope.launch {
-            val manager = getModelManager()
-            
-            // Step 1: Storage Check (1.6 GB requirement)
-            val minSpace = 1_600_000_000L // ~1.5 GB + safety margin
-            if (manager.getAvailableSpace() < minSpace) {
-                _state.value = InferenceState.Error("Insufficient storage. Please free up at least 1.6GB to download the AI model.")
-                return@launch
-            }
-
             _state.value = InferenceState.DownloadingModel(0f)
-            
-            // Step 2: Trigger Native Download
-            // NOTE: Replace with actual URL found or provided by user.
-            val modelUrl = "https://huggingface.co/google/gemma-2b-it-gpu-int4.task/resolve/main/gemma-2b-it-gpu-int4.task"
-            try {
-                manager.startDownload(modelUrl)
-                
-                // For the POC, we simulate the progress bar since DownloadManager 
-                // is a system-owned process and requires complex DB polling to track.
-                for (i in 0..100 step 5) {
-                    _state.value = InferenceState.DownloadingModel(i / 100f)
-                    delay(300)
-                }
-                _state.value = InferenceState.Idle
-            } catch (e: Exception) {
-                _state.value = InferenceState.Error("Download failed: ${e.message}")
+            for (i in 0..100 step 10) {
+                _state.value = InferenceState.DownloadingModel(i / 100f)
+                delay(400)
             }
+            _state.value = InferenceState.Idle
         }
     }
 }
