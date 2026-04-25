@@ -82,9 +82,8 @@ class HomeScreen : Screen {
                         icon = Icons.Default.Assignment,
                         containerColor = Color(0xFF3F51B5),
                         onClick = { 
-                            // Use parent navigator to push above the TabNavigator stack
                             val rootNavigator = navigator.parent ?: navigator
-                            rootNavigator.push(AnalysisScreen("Dummy Paste Text")) 
+                            rootNavigator.push(PasteInputScreen()) 
                         }
                     )
                 }
@@ -95,7 +94,10 @@ class HomeScreen : Screen {
                         description = "Use your camera to extract text from physical media.",
                         icon = Icons.Default.CropFree,
                         containerColor = Color(0xFF00796B), // Slightly darker teal
-                        onClick = { /* TODO */ }
+                        onClick = { 
+                            val rootNavigator = navigator.parent ?: navigator
+                            rootNavigator.push(PhotoPickerScreen()) 
+                        }
                     )
                 }
 
@@ -105,7 +107,10 @@ class HomeScreen : Screen {
                         description = "Transcribe and analyze live speeches or broadcasts.",
                         icon = Icons.Default.Mic,
                         containerColor = Color(0xFFC62828), // Crimson
-                        onClick = { /* TODO */ }
+                        onClick = { 
+                            val rootNavigator = navigator.parent ?: navigator
+                            rootNavigator.push(AudioPickerScreen()) 
+                        }
                     )
                 }
 

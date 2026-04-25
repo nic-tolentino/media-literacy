@@ -63,4 +63,27 @@ Before UI prototyping, consider these specific UX elements tailored to a local o
 ## 8. Immediate Next Steps
 - [ ] **Set up Dev Environment**: Pull the MediaPipe `.task` weights for `google/gemma-4-E2B` from Kaggle (Do NOT use GGUF).
 - [ ] **Prompt Engineering**: Define the "Logic Master" system prompt using the `<|think|>` token, including translation instructions for the ESL module.
-- [ ] **Mobile Skeleton**: Create a Kotlin/Compose Multiplatform app skeleton with basic camera/mic permissions.
+- [x] **Mobile Skeleton**: Create a Kotlin/Compose Multiplatform app skeleton with basic camera/mic permissions.
+
+## 9. Model Sources & Weights
+For development and production, use the **LiteRT/MediaPipe-compatible** Gemma 4 weights:
+*   **Official Collection**: [litert-community/gemma-family](https://huggingface.co/collections/litert-community/gemma-family)
+*   **Primary Model (E2B-IT)**: [gemma-4-E2B-it-litert-lm](https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm)
+*   **Expert Model (E4B-IT)**: [gemma-4-E4B-it-litert-lm](https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm)
+
+## 10. Benchmarking Plan
+* **Metrics**: 
+    * Time to First Token (TTFT).
+    * tokens/sec (Inference throughput).
+    * Peak Memory Usage (RAM footprint).
+* **Instrumentation**: 
+    * Integrate timing logic within `GemmaOrchestrator` (start-of-prompt to end-of-stream).
+    * Log results to a hidden "Dev/Benchmark" log in the app's Settings to capture real-world data from beta testers.
+* **Target Devices**:
+    * Flagship Tier (e.g., Pixel 9 Pro).
+    * Base Tier (Standard hardware with ~6GB RAM).
+
+## 10. Test Coverage Strategy
+* **Domain Logic**: Validating the mapping of fallacy types to definitions.
+* **Report Parsing**: Unit testing the regex/JSON parser that extracts structured metrics from Gemma's raw text stream.
+* **Prompt Safety**: Ensuring the `systemPrompt` construction remains consistent across analysis, steel-man, and chat modes.

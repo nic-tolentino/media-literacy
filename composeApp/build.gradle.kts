@@ -27,9 +27,13 @@ kotlin {
     }
     
     sourceSets {
-        androidMain.dependencies {
-            implementation(libs.compose.uiToolingPreview)
-            implementation(libs.androidx.activity.compose)
+        val androidMain by getting {
+            dependencies {
+                implementation(libs.compose.uiToolingPreview)
+                implementation(libs.androidx.activity.compose)
+                // New high-performance LiteRT-LM SDK for Gemma 4 (.litertlm support)
+                implementation("com.google.ai.edge.litertlm:litertlm-android:0.10.0")
+            }
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)

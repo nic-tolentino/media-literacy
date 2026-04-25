@@ -9,7 +9,8 @@ data class AnalysisResult(
     val fallacies: List<Fallacy>,
     val toneScore: Int, // 1-5
     val evidenceQuality: Int, // 0-100
-    val credibility: String
+    val credibility: String,
+    val steelMan: String? = null
 )
 
 @Serializable

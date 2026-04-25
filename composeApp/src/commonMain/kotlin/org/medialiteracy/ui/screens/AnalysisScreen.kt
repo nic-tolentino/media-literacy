@@ -1,12 +1,16 @@
 package org.medialiteracy.ui.screens
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.text.selection.SelectionContainer
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,6 +38,7 @@ data class AnalysisScreen(val inputText: String) : Screen {
         val orchestrator = rememberScreenModel { GemmaOrchestrator() }
         val state by orchestrator.state.collectAsState()
         val scope = rememberCoroutineScope()
+        var showRaw by remember { mutableStateOf(false) }
         
         LaunchedEffect(inputText) {
             orchestrator.startAnalysis(inputText)
@@ -42,18 +47,27 @@ data class AnalysisScreen(val inputText: String) : Screen {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Analysis Report", fontWeight = FontWeight.Bold) },
+                    title = { Text(if (showRaw) "Raw Engine Logs" else "Analysis Report", fontWeight = FontWeight.Bold) },
                     navigationIcon = {
-                        IconButton(onClick = { navigator.pop() }) { Icon(Icons.Default.ArrowBack, "Back") }
+                        IconButton(onClick = { 
+                            if (showRaw) showRaw = false else navigator.pop() 
+                        }) { 
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") 
+                        }
                     },
                     actions = {
-                        IconButton(onClick = {}) { Icon(Icons.Default.Share, "Share") }
+                        IconButton(onClick = { showRaw = !showRaw }) { 
+                            Icon(if (showRaw) Icons.Default.BarChart else Icons.Default.Terminal, "Toggle Raw") 
+                        }
                     }
                 )
             }
         ) { padding ->
             Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-                when (val s = state) {
+                if (showRaw) {
+                    RawDebugView(state)
+                } else {
+                    when (val s = state) {
                     is InferenceState.Thinking -> {
                         ThinkingState(s.tokens)
                     }
@@ -67,10 +81,31 @@ data class AnalysisScreen(val inputText: String) : Screen {
                             scope.launch { orchestrator.startAnalysis(inputText) } 
                         }
                     }
-                    else -> {
-                        ThinkingState("Initializing Engine...")
+                        else -> {
+                            ThinkingState("Initializing Engine...")
+                        }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun RawDebugView(state: InferenceState) {
+    val tokens = when (state) {
+        is InferenceState.Thinking -> state.tokens
+        is InferenceState.Complete -> state.result.summary
+        is InferenceState.Error -> "Error: ${state.message}"
+        else -> "Initializing..."
+    }
+    
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp).background(Color(0xFF212121)).padding(16.dp)) {
+        Text("RAW MODEL OUTPUT", color = Color(0xFF81C784), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        Spacer(modifier = Modifier.height(16.dp))
+        Box(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            SelectionContainer {
+                Text(tokens, color = Color.White, style = MaterialTheme.typography.bodySmall, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
             }
         }
     }
@@ -156,6 +191,33 @@ fun ReportContent(result: AnalysisResult, onDiscuss: () -> Unit) {
             items(result.fallacies.size) { index ->
                 val f = result.fallacies[index]
                 FallacyItem(f.type, f.evidence)
+            }
+        }
+
+        result.steelMan?.let { sm ->
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE0F2F1)),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF4DB6AC))
+                ) {
+                    Column(modifier = Modifier.padding(24.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Balance, null, tint = Color(0xFF00796B), modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text("The Steel-Man Case", fontWeight = FontWeight.Bold, color = Color(0xFF00796B))
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            "The strongest possible counter-argument for balance:",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.DarkGray
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(sm, style = MaterialTheme.typography.bodyMedium, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+                    }
+                }
             }
         }
 

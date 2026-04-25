@@ -4,6 +4,18 @@ This document outlines the high-level architecture of the Gemma4ML project, pres
 
 ## 1. Core Architectural Patterns
 
+### 7. Development Fallback & Hybrid Engine
+
+To enable rapid UI development and testing across environments without requiring 1.2GB of model weights, the `AndroidLlmEngine` implements a **Hybrid Logic**:
+
+*   **Real Mode**: Triggered automatically if `gemma.task` is present in the app's internal storage (`filesDir`). Uses MediaPipe for on-device inference.
+*   **Stub Mode (Developer Fallback)**: Triggered if the model file is missing. It mimics the behavior of the real model by streaming a high-fidelity mock response, including `<|think|>` blocks and structured JSON.
+
+This allows for:
+*   Full UI/UX validation without large downloads.
+*   Testing of the `InferenceState` lifecycle (Idle -> Thinking -> Complete).
+*   Deterministic verification of the "Thinking Mode" layout.
+
 ### Clean Architecture & MVI
 We follow a Clean Architecture approach to isolate the AI domain logic from the UI.
 *   **Domain Layer (`commonMain/kotlin/org/medialiteracy/domain`)**: Contains the business logic, state machines (`GemmaOrchestrator`), and interfaces (`LlmEngine`).
