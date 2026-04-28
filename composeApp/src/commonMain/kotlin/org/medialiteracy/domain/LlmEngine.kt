@@ -24,6 +24,9 @@ interface LlmEngine {
      */
     fun generatePersistentStreaming(prompt: String, isFirstTurn: Boolean): Flow<String>
 
+    /** Returns true if there is an ongoing conversation context in memory. */
+    fun hasActiveConversation(): Boolean
+
     /** Synchronous/Blocking response generation. */
     suspend fun generateResponse(prompt: String): String
 

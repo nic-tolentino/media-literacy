@@ -25,8 +25,13 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import kotlinx.coroutines.launch
 import org.medialiteracy.domain.GemmaOrchestrator
+import org.medialiteracy.domain.AnalysisResult
 
-data class ChatScreen(val initialMessage: String? = null) : Screen {
+data class ChatScreen(
+    val articleText: String? = null,
+    val analysisResult: AnalysisResult? = null,
+    val initialMessage: String? = null
+) : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
@@ -56,7 +61,9 @@ data class ChatScreen(val initialMessage: String? = null) : Screen {
             hasOrientedToResponse = false // Reset gravity for the new response
             
             orchestrator.generateChatResponse(
-                text,
+                userMessage = text,
+                articleText = articleText,
+                analysisResult = analysisResult,
                 onUpdate = { partial -> 
                     streamingResponse = partial
                     

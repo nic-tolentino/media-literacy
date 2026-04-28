@@ -42,7 +42,11 @@ import org.medialiteracy.domain.InferenceState
 import kotlin.math.cos
 import kotlin.math.sin
 
-data class AnalysisScreen(val inputText: String) : Screen {
+data class AnalysisScreen(
+    val inputText: String,
+    val cachedResult: AnalysisResult? = null,
+    val analysisId: String? = null
+) : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
@@ -52,7 +56,11 @@ data class AnalysisScreen(val inputText: String) : Screen {
         val scope = rememberCoroutineScope()
         
         LaunchedEffect(inputText) {
-            orchestrator.startAnalysis(inputText)
+            if (cachedResult != null) {
+                orchestrator.restoreAnalysis(inputText, cachedResult)
+            } else {
+                orchestrator.startAnalysis(inputText)
+            }
         }
 
         Scaffold(
@@ -70,9 +78,19 @@ data class AnalysisScreen(val inputText: String) : Screen {
                         ThinkingState(s.partialResponse)
                     }
                     is InferenceState.Complete -> {
-                        ReportContent(s.result) { initialPrompt ->
-                            navigator.push(ChatScreen(initialPrompt))
-                        }
+                        ReportContent(
+                            result = s.result,
+                            onLogicHatClick = { initialPrompt ->
+                                navigator.push(ChatScreen(
+                                    articleText = inputText, 
+                                    analysisResult = s.result, 
+                                    initialMessage = initialPrompt
+                                ))
+                            },
+                            onReRunClick = {
+                                orchestrator.startAnalysis(inputText, analysisId)
+                            }
+                        )
                     }
                     is InferenceState.Error -> {
                         ErrorState(s.message) { 
@@ -122,161 +140,166 @@ fun NewsDecoderHeader(onClose: () -> Unit) {
 }
 
 @Composable
-fun ReportContent(result: AnalysisResult, onLogicHatClick: (String) -> Unit) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+fun ReportContent(
+    result: AnalysisResult, 
+    onLogicHatClick: (String) -> Unit,
+    onReRunClick: () -> Unit = {}
+) {
+    val scrollState = rememberScrollState()
+    Column(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp).verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        item {
-            Column(modifier = Modifier.padding(top = 8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Analytics, null, tint = Color(0xFF3F51B5), modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        "ANALYSIS REPORT",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF3F51B5),
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
+        Column(modifier = Modifier.padding(top = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Analytics, null, tint = Color(0xFF3F51B5), modifier = Modifier.size(14.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    "Structural Analysis Report",
-                    style = MaterialTheme.typography.headlineMedium,
+                    "ANALYSIS REPORT",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF3F51B5),
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
-                Text(
-                    "Comprehensive evaluation of logical structure, evidentiary support, and rhetorical framing.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
+                    letterSpacing = 1.sp
                 )
             }
-        }
-
-        item {
-            AnalysisSectionCard(
-                title = "Executive Summary",
-                icon = Icons.Default.School,
-                onIconClick = { onLogicHatClick("Can you help me understand the core pillars of this argument?") }
-            ) {
-                Column {
-                    Text(
-                        result.summary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        lineHeight = 22.sp,
-                        color = Color.DarkGray
-                    )
-                    Spacer(modifier = Modifier.height(20.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        SmallMetricCard(
-                            label = "Primary Strength",
-                            value = result.primaryStrength,
-                            icon = Icons.Default.CheckCircle,
-                            iconColor = Color(0xFF00897B),
-                            modifier = Modifier.weight(1f)
-                        )
-                        SmallMetricCard(
-                            label = "Observation Area",
-                            value = result.observationArea,
-                            icon = Icons.Default.Info,
-                            iconColor = Color(0xFF424242),
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-            }
-        }
-
-        item {
-            AnalysisSectionCard(
-                title = "Narrative Tone",
-                subtitle = "Evaluates the degree of subjectivity and emotional framing",
-                icon = Icons.Default.School,
-                onIconClick = { onLogicHatClick("Can you explain how you reached this objectivity score, and how it differs from the logic metrics?") }
-            ) {
-                NarrativePerspectiveSlider(result.objectivityScore / 100f)
-            }
-        }
-
-        item {
-            AnalysisSectionCard(
-                title = "Argument Metrics",
-                icon = Icons.Default.School,
-                onIconClick = { onLogicHatClick("Can you please explain how you calculated these metric scores?") }
-            ) {
-                Box(modifier = Modifier.fillMaxWidth().height(240.dp), contentAlignment = Alignment.Center) {
-                    RadarChart(
-                        logic = result.logicScore.toFloat(),
-                        objectivity = result.objectivityScore.toFloat(),
-                        evidence = result.evidenceQuality.toFloat(),
-                        credibility = result.credibilityScore.toFloat()
-                    )
-                }
-            }
-        }
-
-        item {
-            Column {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("Rhetorical Patterns Detected", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Surface(
-                        color = Color(0xFFF5F5F5),
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
-                        Text(
-                            "${result.fallacies.size} Observations",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-                if (result.isAnalyzingFallacies) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8EAF6)),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color(0xFF3F51B5))
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text("Identifying rhetorical patterns...", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("The Master is deconstructing the deep logical structure. This takes about 20s.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                            Spacer(modifier = Modifier.height(12.dp))
-                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth().clip(CircleShape), color = Color(0xFF3F51B5))
-                        }
-                    }
-                }
-
-                if (result.fallacies.isEmpty() && !result.isAnalyzingFallacies) {
-                    Text("No significant patterns detected in this initial pass.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray, modifier = Modifier.padding(16.dp))
-                } else {
-                    result.fallacies.forEach { fallacy ->
-                        PatternCard(fallacy.type, fallacy.evidence) {
-                            onLogicHatClick("Can you please explain why you flagged this specific instance of ${fallacy.type}?")
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-                }
-            }
-        }
-
-        item {
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "This report evaluates structural logic and rhetorical patterns. It does not verify factual accuracy.",
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.LightGray,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
+                "Structural Analysis Report",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
             )
+            Text(
+                "Comprehensive evaluation of logical structure, evidentiary support, and rhetorical framing.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            OutlinedButton(
+                onClick = onReRunClick,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF3F51B5)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF3F51B5).copy(alpha = 0.5f))
+            ) {
+                Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Re-run Analysis", fontWeight = FontWeight.Bold)
+            }
         }
+
+        AnalysisSectionCard(
+            title = "Executive Summary",
+            icon = Icons.Default.School,
+            onIconClick = { onLogicHatClick("Can you help me understand the core pillars of this argument?") }
+        ) {
+            Column {
+                Text(
+                    result.summary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    lineHeight = 22.sp,
+                    color = Color.DarkGray
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SmallMetricCard(
+                        label = "Primary Strength",
+                        value = result.primaryStrength,
+                        icon = Icons.Default.CheckCircle,
+                        iconColor = Color(0xFF00897B),
+                        modifier = Modifier.weight(1f)
+                    )
+                    SmallMetricCard(
+                        label = "Observation Area",
+                        value = result.observationArea,
+                        icon = Icons.Default.Info,
+                        iconColor = Color(0xFF424242),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+
+        AnalysisSectionCard(
+            title = "Narrative Tone",
+            subtitle = "Evaluates the degree of subjectivity and emotional framing",
+            icon = Icons.Default.School,
+            onIconClick = { onLogicHatClick("Can you explain how you reached this objectivity score, and how it differs from the logic metrics?") }
+        ) {
+            NarrativePerspectiveSlider(result.objectivityScore / 100f)
+        }
+
+        AnalysisSectionCard(
+            title = "Argument Metrics",
+            icon = Icons.Default.School,
+            onIconClick = { onLogicHatClick("Can you please explain how you calculated these metric scores?") }
+        ) {
+            Box(modifier = Modifier.fillMaxWidth().height(240.dp), contentAlignment = Alignment.Center) {
+                RadarChart(
+                    logic = result.logicScore.toFloat(),
+                    objectivity = result.objectivityScore.toFloat(),
+                    evidence = result.evidenceQuality.toFloat(),
+                    credibility = result.credibilityScore.toFloat()
+                )
+            }
+        }
+
+        Column {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Rhetorical Patterns Detected", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Surface(
+                    color = Color(0xFFF5F5F5),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        "${result.fallacies.size} Observations",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+            if (result.isAnalyzingFallacies) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE8EAF6)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color(0xFF3F51B5))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text("Identifying rhetorical patterns...", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("The Master is deconstructing the deep logical structure. This takes about 20s.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth().clip(CircleShape), color = Color(0xFF3F51B5))
+                    }
+                }
+            }
+
+            if (result.fallacies.isEmpty() && !result.isAnalyzingFallacies) {
+                Text("No significant patterns detected in this initial pass.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray, modifier = Modifier.padding(16.dp))
+            } else {
+                result.fallacies.forEach { fallacy ->
+                    PatternCard(fallacy.type, fallacy.evidence) {
+                        onLogicHatClick("Can you please explain why you flagged this specific instance of ${fallacy.type}?")
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
+        }
+
+        Text(
+            "This report evaluates structural logic and rhetorical patterns. It does not verify factual accuracy.",
+            style = MaterialTheme.typography.labelSmall,
+            color = Color.LightGray,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
+        )
         
-        item { Spacer(modifier = Modifier.height(32.dp)) }
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 

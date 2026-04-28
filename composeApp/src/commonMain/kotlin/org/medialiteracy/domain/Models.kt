@@ -39,7 +39,7 @@ data class AnalysisResult(
     val primaryStrength: String,
     val observationArea: String,
     val isAnalyzingFallacies: Boolean = false
-)
+) : SharedSerializable
 
 /**
  * Represents a specific logical flaw or rhetorical device detected in the text.
@@ -53,7 +53,23 @@ data class Fallacy(
     val type: String,
     val description: String,
     val evidence: String
-)
+) : SharedSerializable
+
+/**
+ * Represents a saved analysis entry in the local history.
+ *
+ * @property id Unique identifier (UUID).
+ * @property timestamp Unix timestamp of when the analysis was performed.
+ * @property originalArticleText The raw input text analyzed by the engine.
+ * @property analysisResult The structured analytical output.
+ */
+@Serializable
+data class SavedAnalysis(
+    val id: String,
+    val timestamp: Long,
+    val originalArticleText: String,
+    val analysisResult: AnalysisResult
+) : SharedSerializable
 
 /**
  * Represents the hierarchical state of the local AI inference lifecycle.

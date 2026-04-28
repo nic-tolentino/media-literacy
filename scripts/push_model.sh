@@ -11,15 +11,22 @@ fi
 
 MODEL_PATH=$1
 PACKAGE_NAME="org.medialiteracy"
-TEMP_PATH="/data/local/tmp/gemma.task"
-DEST_PATH="/data/data/$PACKAGE_NAME/files/gemma.task"
+
+# Extract extension (either 'task' or 'litertlm')
+EXTENSION="${MODEL_PATH##*.}"
+if [ "$EXTENSION" != "task" ] && [ "$EXTENSION" != "litertlm" ]; then
+    EXTENSION="task" # fallback
+fi
+
+TEMP_PATH="/data/local/tmp/gemma.$EXTENSION"
+DEST_PATH="/data/data/$PACKAGE_NAME/files/gemma.$EXTENSION"
 
 # 0. Size Check
 FILE_SIZE=$(du -k "$MODEL_PATH" | cut -f1)
-if [ "$FILE_SIZE" -gt 2500000 ]; then
-    echo "⚠️  WARNING: This file is >2.5GB ($((FILE_SIZE/1024)) MB)."
-    echo "You are likely trying to push a 'Transformers' model instead of a 'MediaPipe' model."
-    echo "MediaPipe models should be ~1.2GB - 1.5GB."
+if [ "$FILE_SIZE" -gt 4500000 ]; then
+    echo "⚠️  WARNING: This file is >4.5GB ($((FILE_SIZE/1024)) MB)."
+    echo "You are likely trying to push a 'Transformers' model instead of an edge model."
+    echo "MediaPipe/LiteRT models should be ~1.2GB - 4.0GB."
     read -p "Are you sure you want to proceed? (y/n) " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -37,7 +44,7 @@ adb shell "chmod 666 $TEMP_PATH"
 # 2. Move to app internal storage
 echo "🔐 Moving to app internal storage (requires run-as)..."
 adb shell "run-as $PACKAGE_NAME mkdir -p files"
-if adb shell "run-as $PACKAGE_NAME cp $TEMP_PATH files/gemma.task"; then
+if adb shell "run-as $PACKAGE_NAME cp $TEMP_PATH files/gemma.$EXTENSION"; then
     echo "📄 File copied successfully within app context."
 else
     echo "❌ Error: Failed to copy file to app context. Ensure the app is installed and debuggable."

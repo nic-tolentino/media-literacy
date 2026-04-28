@@ -23,12 +23,20 @@ import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import cafe.adriel.voyager.core.model.rememberScreenModel
+import org.medialiteracy.domain.SavedAnalysis
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 class HomeScreen : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
+        val screenModel = rememberScreenModel { HomeScreenModel() }
+        val savedAnalyses by screenModel.savedAnalyses.collectAsState()
+        var articleToDelete by remember { mutableStateOf<SavedAnalysis?>(null) }
 
         Scaffold(
             topBar = {
@@ -114,36 +122,87 @@ class HomeScreen : Screen {
                     )
                 }
 
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "Recent Analyses",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            "VIEW ALL",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF3F51B5),
-                            fontWeight = FontWeight.Bold
+                if (savedAnalyses.isNotEmpty()) {
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Recent Analyses",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "VIEW ALL",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF3F51B5),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    items(savedAnalyses, key = { it.id }) { analysis ->
+                        RecentAnalysisCard(
+                            analysis = analysis,
+                            onClick = {
+                                val rootNavigator = navigator.parent ?: navigator
+                                rootNavigator.push(AnalysisScreen(
+                                    inputText = analysis.originalArticleText,
+                                    cachedResult = analysis.analysisResult,
+                                    analysisId = analysis.id
+                                ))
+                            },
+                            onDelete = {
+                                articleToDelete = analysis
+                            }
                         )
                     }
-                }
-
-                items(dummyRecentAnalyses) { analysis ->
-                    RecentAnalysisCard(analysis)
+                } else {
+                    item {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(Icons.Default.History, null, tint = Color.LightGray, modifier = Modifier.size(64.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("No history yet", color = Color.Gray, fontWeight = FontWeight.Medium)
+                            Text("Start an analysis to see history here.", style = MaterialTheme.typography.bodySmall, color = Color.LightGray)
+                        }
+                    }
                 }
                 
                 item { Spacer(modifier = Modifier.height(24.dp)) }
+            }
+
+            articleToDelete?.let { analysis ->
+                AlertDialog(
+                    onDismissRequest = { articleToDelete = null },
+                    title = { Text("Delete Analysis") },
+                    text = { Text("Are you sure you want to delete this analysis? This action cannot be undone.") },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                screenModel.deleteAnalysis(analysis.id)
+                                articleToDelete = null
+                            }
+                        ) {
+                            Text("Delete", color = Color.Red)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { articleToDelete = null }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InputCard(
     title: String,
@@ -153,12 +212,8 @@ fun InputCard(
     onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = LocalIndication.current
-            ) { onClick() },
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
@@ -181,17 +236,27 @@ fun InputCard(
     }
 }
 
-data class AnalysisEntry(val title: String, val source: String, val bias: String, val time: String)
-
-val dummyRecentAnalyses = listOf(
-    AnalysisEntry("Economic Policy Shifts Proposed in New Bill", "GlobalFinance.com", "LOW BIAS", "2h ago"),
-    AnalysisEntry("The Outrageous Claims By Opposition Leaders", "DailyOpinion.net", "HIGH BIAS", "5h ago"),
-    AnalysisEntry("Local Election Results Bring Mixed Reactions", "CityTribune.org", "MODERATE", "1d ago")
-)
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RecentAnalysisCard(entry: AnalysisEntry) {
+fun RecentAnalysisCard(
+    analysis: SavedAnalysis,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val result = analysis.analysisResult
+    // ... timeStr calculation ...
+    val timeStr = remember(analysis.timestamp) {
+        try {
+            val instant = Instant.fromEpochMilliseconds(analysis.timestamp)
+            val dt = instant.toLocalDateTime(TimeZone.currentSystemDefault())
+            "${dt.monthNumber}/${dt.dayOfMonth} ${dt.hour.toString().padStart(2, '0')}:${dt.minute.toString().padStart(2, '0')}"
+        } catch (e: Exception) {
+            "Just now"
+        }
+    }
+
     Card(
+        onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -204,27 +269,42 @@ fun RecentAnalysisCard(entry: AnalysisEntry) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 BadgeText(
-                    text = entry.bias,
-                    containerColor = when (entry.bias) {
-                        "LOW BIAS" -> Color(0xFFA7FFEB)
-                        "HIGH BIAS" -> Color(0xFFFFCCBC)
+                    text = result.credibility.uppercase(),
+                    containerColor = when {
+                        result.credibilityScore > 70 -> Color(0xFFA7FFEB)
+                        result.credibilityScore < 40 -> Color(0xFFFFCCBC)
                         else -> Color(0xFFF5F5F5)
                     },
-                    contentColor = when (entry.bias) {
-                        "LOW BIAS" -> Color(0xFF004D40)
-                        "HIGH BIAS" -> Color(0xFFBF360C)
+                    contentColor = when {
+                        result.credibilityScore > 70 -> Color(0xFF004D40)
+                        result.credibilityScore < 40 -> Color(0xFFBF360C)
                         else -> Color.DarkGray
                     }
                 )
-                Text(entry.time, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                Text(timeStr, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Text(entry.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Description, null, modifier = Modifier.size(14.dp), tint = Color.Gray)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(entry.source, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Text(
+                analysis.originalArticleText.take(60).replace("\n", " ") + "...",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Analytics, null, modifier = Modifier.size(14.dp), tint = Color.Gray)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Score: ${result.credibilityScore}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                }
+                
+                IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Default.DeleteOutline, null, tint = Color.LightGray, modifier = Modifier.size(18.dp))
+                }
             }
         }
     }

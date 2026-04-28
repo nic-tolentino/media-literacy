@@ -95,16 +95,28 @@ class AndroidLlmEngine : LlmEngine {
     }
 
     /** Stateless streaming. Creates a fresh conversation for every call. */
-    override fun generateStreaming(prompt: String): Flow<String> {
+    override fun generateStreaming(prompt: String): Flow<String> = kotlinx.coroutines.flow.flow {
         val eng = engine ?: throw Exception("Engine not initialized.")
+        
+        mutex.withLock {
+            activeConversation?.close()
+            activeConversation = null
+        }
+        
         val conversation = eng.createConversation()
         
-        return conversation.sendMessageAsync(prompt)
-            .map { extractText(it) }
-            .catch { e -> 
-                android.util.Log.e("GemmaEngine", "Streaming error: ${e.message}")
-                emit("Error in generation stream.")
+        try {
+            conversation.sendMessageAsync(prompt).collect { message ->
+                emit(extractText(message))
             }
+        } catch (e: Exception) {
+            if (e !is kotlinx.coroutines.CancellationException) {
+                android.util.Log.e("GemmaEngine", "Streaming error: ${e.message}")
+            }
+            emit("Error in generation stream.")
+        } finally {
+            conversation.close()
+        }
     }
 
     private val mutex = kotlinx.coroutines.sync.Mutex()
@@ -149,17 +161,25 @@ class AndroidLlmEngine : LlmEngine {
             android.util.Log.i("GemmaEngine", "Stream complete. Total: $charCount chars")
             this@callbackFlow.close()
         } catch (e: Exception) {
-            android.util.Log.e("GemmaEngine", "Persistent streaming error: ${e.message}")
+            if (e !is kotlinx.coroutines.CancellationException) {
+                android.util.Log.e("GemmaEngine", "Persistent streaming error: ${e.message}")
+            }
             this@callbackFlow.close(e)
         }
         
         awaitClose { /* Persist convo across flow closures */ }
     }
 
+    override fun hasActiveConversation(): Boolean = activeConversation != null
+
     /** Blocking response generation. */
     override suspend fun generateResponse(prompt: String): String {
         return withContext(Dispatchers.Default) {
             val eng = engine ?: throw Exception("Engine not initialized")
+            mutex.withLock {
+                activeConversation?.close()
+                activeConversation = null
+            }
             eng.createConversation().use { conversation ->
                 val response = conversation.sendMessage(prompt)
                 extractText(response)

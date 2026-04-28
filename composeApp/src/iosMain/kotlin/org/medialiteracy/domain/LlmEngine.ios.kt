@@ -19,6 +19,8 @@ class IosLlmEngine : LlmEngine {
         emit("This is a persistent streaming response from the iOS No-Op engine.")
     }
 
+    override fun hasActiveConversation(): Boolean = false
+
     override suspend fun generateResponse(prompt: String): String {
         delay(500)
         return "This is a dummy response from the iOS No-Op engine."

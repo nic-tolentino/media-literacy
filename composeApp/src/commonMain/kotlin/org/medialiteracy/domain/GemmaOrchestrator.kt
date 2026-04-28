@@ -24,7 +24,8 @@ import kotlinx.coroutines.flow.Flow
  * 3. **Chat State**: Managing persistent multi-turn conversations through "Sticky Sessions".
  */
 class GemmaOrchestrator(
-    private val engine: LlmEngine = LlmEngine.getInstance()
+    private val engine: LlmEngine = LlmEngine.getInstance(),
+    private val repository: AnalysisRepository = AnalysisRepository.getInstance()
 ) : ScreenModel {
     
     /** Configured for lenient parsing to handle model-generated formatting variations. */
@@ -93,12 +94,21 @@ class GemmaOrchestrator(
     }
 
     /**
+     * Restores a previously saved analysis result into the orchestrator state.
+     */
+    fun restoreAnalysis(text: String, result: AnalysisResult) {
+        lastAnalyzedInput = text
+        lastAnalysisResult = result
+        _state.value = InferenceState.Complete(result)
+    }
+
+    /**
      * Triggers the full structural analysis pipeline.
      * Executes in two stages:
      * 1. **Summary Stage**: Generates the executive summary and Truth Radar scores.
      * 2. **Fallacy Stage**: Enriches the result with deep logical pattern analysis.
      */
-    fun startAnalysis(input: String) {
+    fun startAnalysis(input: String, existingId: String? = null) {
         if (_state.value is InferenceState.Complete && lastAnalyzedInput == input) return
         
         deepAnalysisJob?.cancel()
@@ -135,6 +145,16 @@ class GemmaOrchestrator(
                 )
                 
                 _state.value = InferenceState.Complete(lastAnalysisResult)
+                
+                // Persist the completed analysis
+                repository.saveAnalysis(
+                    SavedAnalysis(
+                        id = existingId ?: currentTime().toString(), // Simple ID for now
+                        timestamp = currentTime(),
+                        originalArticleText = input,
+                        analysisResult = lastAnalysisResult
+                    )
+                )
 
             } catch (e: Exception) {
                 if (e !is kotlinx.coroutines.CancellationException) {
@@ -148,12 +168,28 @@ class GemmaOrchestrator(
      * Generates a chat response using the model's active knowledge session.
      * Includes logic to sanitize and filter internal Chain-of-Thought tags for the final UI display.
      */
-    fun generateChatResponse(userMessage: String, onUpdate: (String) -> Unit, onComplete: (String) -> Unit) {
+    fun generateChatResponse(
+        userMessage: String, 
+        articleText: String? = null,
+        analysisResult: AnalysisResult? = null,
+        onUpdate: (String) -> Unit, 
+        onComplete: (String) -> Unit
+    ) {
         deepAnalysisJob?.cancel()
+
+        if (articleText != null) this.lastAnalyzedInput = articleText
+        if (analysisResult != null) this.lastAnalysisResult = analysisResult
 
         screenModelScope.launch {
             try {
-                val chatPrompt = "<|turn|>user\n$userMessage\nExpert Guidance:\n<|turn|>model\n"
+                // If there's no active conversation (e.g. loaded from storage), we must inject the article.
+                val isContextInjectionNeeded = !engine.hasActiveConversation() && lastAnalyzedInput != null
+                
+                val chatPrompt = if (isContextInjectionNeeded) {
+                    "<|turn|>user\nHere is an article for context: \n${lastAnalyzedInput}\n\n$userMessage\nExpert Guidance:\n<|turn|>model\n"
+                } else {
+                    "<|turn|>user\n$userMessage\nExpert Guidance:\n<|turn|>model\n"
+                }
                 
                 var fullResponse = ""
                 persistentFlow(chatPrompt, isFirstTurn = false).collect { token ->
@@ -165,6 +201,7 @@ class GemmaOrchestrator(
                 val finalDisplay = fullResponse.replace(Regex("<\\|think\\|>[\\s\\S]*?\\*?\\/\\|think\\|>"), "").trim()
                 onComplete(finalDisplay)
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 fallbackChatResponse(userMessage, onUpdate, onComplete)
             }
         }
@@ -267,4 +304,6 @@ class GemmaOrchestrator(
             _state.value = InferenceState.Idle
         }
     }
+
+    private fun currentTime(): Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
 }

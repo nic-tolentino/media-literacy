@@ -105,7 +105,8 @@ class PasteInputScreen : Screen {
                 Button(
                     onClick = {
                         if (text.isNotBlank()) {
-                            navigator.push(AnalysisScreen(text))
+                            // Use replace so backing out from AnalysisScreen goes to Home
+                            navigator.replace(AnalysisScreen(text))
                         }
                     },
                     modifier = Modifier
