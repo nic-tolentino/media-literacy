@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
 class IosLlmEngine : LlmEngine {
-    override fun initialize(context: Any) {
+    override suspend fun initialize(context: Any) {
         // No-op for iOS stub
     }
 
@@ -20,31 +20,12 @@ class IosLlmEngine : LlmEngine {
     }
 
     override fun hasActiveConversation(): Boolean = false
-
-    override suspend fun generateResponse(prompt: String): String {
-        delay(500)
-        return "This is a dummy response from the iOS No-Op engine."
+    
+    override suspend fun closeSession() {
+        // No-op for iOS stub
     }
 
-    override suspend fun analyzeMultimodal(input: ByteArray, type: InputType): AnalysisResult {
-        delay(1000)
-        return AnalysisResult(
-            summary = "iOS Dummy Analysis",
-            highlights = emptyList(),
-            fallacies = emptyList(),
-            objectivityScore = 0,
-            objectivityValue = 0.0f,
-            logicScore = 0,
-            evidenceQuality = 0,
-            credibility = "N/A",
-            credibilityScore = 0,
-            primaryStrength = "N/A",
-            observationArea = "N/A",
-            isAnalyzingFallacies = false
-        )
-    }
-
-    override fun close() {
+    override suspend fun close() {
         // No-op for iOS stub
     }
 }

@@ -8,8 +8,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -87,7 +89,7 @@ class HomeScreen : Screen {
                     InputCard(
                         title = "Paste Text / URL",
                         description = "Quickly analyze articles, blog posts, or copied text fragments.",
-                        icon = Icons.Default.Assignment,
+                        icon = Icons.AutoMirrored.Filled.Assignment,
                         containerColor = Color(0xFF3F51B5),
                         onClick = { 
                             val rootNavigator = navigator.parent ?: navigator

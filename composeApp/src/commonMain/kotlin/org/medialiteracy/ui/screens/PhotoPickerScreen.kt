@@ -1,5 +1,6 @@
 package org.medialiteracy.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,11 +23,14 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 
+import org.medialiteracy.domain.ServiceRegistry
+
 class PhotoPickerScreen : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
+        val coordinator = ServiceRegistry.analysisCoordinator
 
         Scaffold(
             topBar = {
@@ -48,21 +52,26 @@ class PhotoPickerScreen : Screen {
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(200.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(Color(0xFFF5F5F5))
-                        .border(2.dp, Color.LightGray, RoundedCornerShape(24.dp))
-                        .clickable { /* TODO: Trigger Camera */ },
-                    contentAlignment = Alignment.Center
+                Surface(
+                    onClick = { 
+                        // SIMULATION: In a real app, this would capture camera bytes
+                        val mockImage = ByteArray(1024) 
+                        coordinator.startImageAnalysis(mockImage, "Scan of a newspaper front page about local election bias.")
+                        navigator.push(AnalysisScreen(inputText = "[Image Content]"))
+                    },
+                    modifier = Modifier.size(200.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    color = Color(0xFFF5F5F5),
+                    border = BorderStroke(2.dp, Color.LightGray)
                 ) {
-                    Icon(
-                        Icons.Default.CameraAlt, 
-                        contentDescription = "Capture",
-                        modifier = Modifier.size(64.dp),
-                        tint = Color(0xFF00796B)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.CameraAlt, 
+                            contentDescription = "Capture",
+                            modifier = Modifier.size(64.dp),
+                            tint = Color(0xFF00796B)
+                        )
+                    }
                 }
                 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -81,10 +90,15 @@ class PhotoPickerScreen : Screen {
 
                 Spacer(modifier = Modifier.height(48.dp))
 
-                OutlinedButton(
-                    onClick = { /* TODO: Gallery Pick */ },
+                Button(
+                    onClick = { 
+                        val mockImage = ByteArray(1024) 
+                        coordinator.startImageAnalysis(mockImage, "Gallery photo of a political flyer.")
+                        navigator.push(AnalysisScreen(inputText = "[Gallery Photo]"))
+                    },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00796B))
                 ) {
                     Icon(Icons.Default.AddPhotoAlternate, null)
                     Spacer(modifier = Modifier.width(12.dp))

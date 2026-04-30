@@ -1,5 +1,6 @@
 package org.medialiteracy.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,11 +24,14 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 
+import org.medialiteracy.domain.ServiceRegistry
+
 class AudioPickerScreen : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
+        val coordinator = ServiceRegistry.analysisCoordinator
         var isRecording by remember { mutableStateOf(false) }
 
         Scaffold(
@@ -50,21 +54,29 @@ class AudioPickerScreen : Screen {
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(160.dp)
-                        .clip(CircleShape)
-                        .background(if (isRecording) Color(0xFFFFEBEE) else Color(0xFFF5F5F5))
-                        .border(2.dp, if (isRecording) Color.Red else Color.LightGray, CircleShape)
-                        .clickable { isRecording = !isRecording },
-                    contentAlignment = Alignment.Center
+                Surface(
+                    onClick = { 
+                        if (isRecording) {
+                            // SIMULATION: Stop recording and analyze 40 seconds (2 chunks)
+                            val mockAudio = ByteArray(40 * 16000 * 2) 
+                            coordinator.startAudioAnalysis(mockAudio)
+                            navigator.push(AnalysisScreen(inputText = "[Live Recording]"))
+                        }
+                        isRecording = !isRecording 
+                    },
+                    modifier = Modifier.size(160.dp),
+                    shape = CircleShape,
+                    color = if (isRecording) Color(0xFFFFEBEE) else Color(0xFFF5F5F5),
+                    border = BorderStroke(2.dp, if (isRecording) Color.Red else Color.LightGray)
                 ) {
-                    Icon(
-                        Icons.Default.Mic, 
-                        contentDescription = "Record",
-                        modifier = Modifier.size(64.dp),
-                        tint = if (isRecording) Color.Red else Color(0xFFC62828)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.Mic, 
+                            contentDescription = "Record",
+                            modifier = Modifier.size(64.dp),
+                            tint = if (isRecording) Color.Red else Color(0xFFC62828)
+                        )
+                    }
                 }
                 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -87,10 +99,16 @@ class AudioPickerScreen : Screen {
 
                 Spacer(modifier = Modifier.height(64.dp))
 
-                OutlinedButton(
-                    onClick = { /* TODO: File Pick */ },
+                Button(
+                    onClick = { 
+                        // SIMULATION: Select a 30 second file
+                        val mockAudio = ByteArray(30 * 16000 * 2) 
+                        coordinator.startAudioAnalysis(mockAudio)
+                        navigator.push(AnalysisScreen(inputText = "[Audio File]"))
+                    },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
                 ) {
                     Icon(Icons.Default.AudioFile, null)
                     Spacer(modifier = Modifier.width(12.dp))

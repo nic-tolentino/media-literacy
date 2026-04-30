@@ -62,8 +62,6 @@ data class ChatScreen(
             
             orchestrator.generateChatResponse(
                 userMessage = text,
-                articleText = articleText,
-                analysisResult = analysisResult,
                 onUpdate = { partial -> 
                     streamingResponse = partial
                     

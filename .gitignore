@@ -40,6 +40,7 @@ DerivedData/
 # Kotlin/Native
 *.klib
 *.kexe
+.kotlin
 
 # Model weights (large binary assets — download at runtime)
 *.task

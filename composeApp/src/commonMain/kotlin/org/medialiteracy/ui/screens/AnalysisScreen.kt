@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -88,13 +89,18 @@ data class AnalysisScreen(
                                 ))
                             },
                             onReRunClick = {
-                                orchestrator.startAnalysis(inputText, analysisId)
+                                orchestrator.startAnalysis(inputText)
                             }
                         )
                     }
                     is InferenceState.Error -> {
                         ErrorState(s.message) { 
                             scope.launch { orchestrator.startAnalysis(inputText) } 
+                        }
+                    }
+                    is InferenceState.SourceTooLarge -> {
+                        SourceTooLargeState(s.message) { 
+                            navigator.pop() 
                         }
                     }
                     else -> {
@@ -216,6 +222,53 @@ fun ReportContent(
                         iconColor = Color(0xFF424242),
                         modifier = Modifier.weight(1f)
                     )
+                }
+            }
+        }
+
+        // Multimodal Extensions: Vocal Tone
+        if (result.vocalTone != null) {
+            AnalysisSectionCard(
+                title = "Vocal Tone & Emotion",
+                subtitle = "Extracted from prosodic audio analysis",
+                icon = Icons.Default.RecordVoiceOver,
+                onIconClick = { onLogicHatClick("How did you determine the emotional tone of this recording?") }
+            ) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE8EAF6).copy(alpha = 0.5f)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.GraphicEq, null, tint = Color(0xFF3F51B5), modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            result.vocalTone!!,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1A237E)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Multimodal Extensions: Key Claims
+        if (result.keyClaims.isNotEmpty()) {
+            AnalysisSectionCard(
+                title = "Audio Claims Extraction",
+                subtitle = "Key points identified in the speech segments",
+                icon = Icons.Default.List,
+                onIconClick = { onLogicHatClick("Can you list the exact evidence for these audio claims?") }
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    result.keyClaims.forEach { claim ->
+                        Row(verticalAlignment = Alignment.Top) {
+                            Icon(Icons.Default.RadioButtonChecked, null, tint = Color(0xFF3F51B5), modifier = Modifier.size(14.dp).padding(top = 4.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(claim, style = MaterialTheme.typography.bodySmall, color = Color.DarkGray)
+                        }
+                    }
                 }
             }
         }
@@ -428,7 +481,7 @@ fun RadarChart(logic: Float, objectivity: Float, evidence: Float, credibility: F
             // Polygon
             val path = Path()
             for (i in 0..3) {
-                val angle = (i * Math.PI / 2 - Math.PI / 2).toFloat()
+                val angle = (i * kotlin.math.PI / 2 - kotlin.math.PI / 2).toFloat()
                 // Add a tiny floor (0.05) so the polygon is always slightly visible even at 0 scores
                 val rawPercent = (values[i] / 100f).coerceIn(0f, 1f) 
                 val valPercent = if (rawPercent < 0.05f) 0.05f else rawPercent
@@ -460,7 +513,7 @@ fun PatternCard(type: String, evidence: String, onClick: () -> Unit) {
         shape = RoundedCornerShape(8.dp)
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
-            Icon(Icons.Default.Segment, null, tint = Color.Gray, modifier = Modifier.size(18.dp))
+            Icon(Icons.AutoMirrored.Filled.Segment, null, tint = Color.Gray, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(type, fontWeight = FontWeight.Bold, color = Color.Black)
@@ -480,5 +533,41 @@ fun NewsDecoderBottomNav() {
         NavigationBarItem(icon = { Icon(Icons.Default.Home, null) }, label = { Text("Home") }, selected = true, onClick = {})
         NavigationBarItem(icon = { Icon(Icons.Default.School, null) }, label = { Text("Learn") }, selected = false, onClick = {})
         NavigationBarItem(icon = { Icon(Icons.Default.Settings, null) }, label = { Text("Settings") }, selected = false, onClick = {})
+    }
+}
+
+@Composable
+fun SourceTooLargeState(message: String, onBack: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Warning,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = Color(0xFFFBC02D)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Content Too Large",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = message,
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.Gray
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(
+            onClick = onBack,
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A237E))
+        ) {
+            Text("Back to Input")
+        }
     }
 }

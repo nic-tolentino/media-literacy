@@ -38,7 +38,10 @@ data class AnalysisResult(
     val credibility: String,
     val primaryStrength: String,
     val observationArea: String,
-    val isAnalyzingFallacies: Boolean = false
+    val isAnalyzingFallacies: Boolean = false,
+    // Multimodal extensions
+    val vocalTone: String? = null,
+    val keyClaims: List<String> = emptyList()
 ) : SharedSerializable
 
 /**
@@ -86,6 +89,9 @@ sealed class InferenceState {
     
     /** An unrecoverable error occurred during inference or initialization. */
     data class Error(val message: String) : InferenceState()
+
+    /** Input source exceeds maximum context window. */
+    data class SourceTooLarge(val message: String) : InferenceState()
     
     /** Initial model weight download in progress; progress is 0.0 to 1.0. */
     data class DownloadingModel(val progress: Float) : InferenceState()
