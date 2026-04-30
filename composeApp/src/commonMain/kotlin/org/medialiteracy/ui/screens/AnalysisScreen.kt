@@ -57,10 +57,13 @@ data class AnalysisScreen(
         val scope = rememberCoroutineScope()
         
         LaunchedEffect(inputText) {
-            if (cachedResult != null) {
-                orchestrator.restoreAnalysis(inputText, cachedResult)
-            } else {
-                orchestrator.startAnalysis(inputText)
+            // Only auto-trigger if we aren't already doing something (e.g. multimodal analysis started by previous screen)
+            if (state is InferenceState.Idle) {
+                if (cachedResult != null) {
+                    orchestrator.restoreAnalysis(inputText, cachedResult)
+                } else {
+                    orchestrator.startAnalysis(inputText)
+                }
             }
         }
 

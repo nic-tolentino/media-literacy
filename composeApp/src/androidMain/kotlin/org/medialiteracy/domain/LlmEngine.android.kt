@@ -14,6 +14,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.asCoroutineDispatcher
+import java.util.concurrent.Executors
 import java.io.File
 import org.medialiteracy.domain.Logger
 
@@ -28,6 +30,9 @@ import org.medialiteracy.domain.Logger
  */
 class AndroidLlmEngine : LlmEngine {
     private var engine: Engine? = null
+    
+    /** Dedicated thread for all native engine interactions to prevent thread-safety crashes. */
+    private val engineContext = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
     
     /** 
      * Persistent handle for the active dialogue.
@@ -79,17 +84,81 @@ class AndroidLlmEngine : LlmEngine {
                 }
 
                 val modelPath = modelFile.absolutePath
-                Logger.i("GemmaEngine", "Loading model from: $modelPath")
+                val fileSizeMB = modelFile.length() / (1024 * 1024)
+                Logger.i("GemmaEngine", "Loading model from: $modelPath ($fileSizeMB MB)")
 
-                val cpuConfig = EngineConfig(
-                    modelPath = modelPath,
-                    backend = Backend.CPU(),
-                    maxNumTokens = 4096 
-                )
-                withContext(Dispatchers.IO) {
-                    engine = Engine(cpuConfig).apply { initialize() }
+                // Vision/audio adapter sections in the .litertlm model file have a `cpu`
+                // backend constraint — using Backend.GPU() for these causes the SDK to
+                // skip the vision encoder entirely (VisionExecutorSettings: Not set → SIGSEGV).
+                // The main LLM (tf_lite_prefill_decode) has no constraint and can use GPU.
+                Logger.i("GemmaEngine", "Env Check: FINGERPRINT=${android.os.Build.FINGERPRINT}, MODEL=${android.os.Build.MODEL}, PRODUCT=${android.os.Build.PRODUCT}, HARDWARE=${android.os.Build.HARDWARE}")
+                
+                val isEmulator = android.os.Build.FINGERPRINT.contains("generic") ||
+                                android.os.Build.FINGERPRINT.contains("unknown") ||
+                                android.os.Build.MODEL.contains("google_sdk") ||
+                                android.os.Build.MODEL.contains("Emulator") ||
+                                android.os.Build.MODEL.contains("Android SDK built for x86") ||
+                                android.os.Build.MANUFACTURER.contains("Genymotion") ||
+                                (android.os.Build.BRAND.startsWith("generic") && android.os.Build.DEVICE.startsWith("generic")) ||
+                                android.os.Build.PRODUCT.contains("sdk_google") ||
+                                android.os.Build.PRODUCT.contains("google_sdk") ||
+                                android.os.Build.PRODUCT.contains("sdk") ||
+                                android.os.Build.PRODUCT.contains("sdk_gphone64_arm64") ||
+                                android.os.Build.HARDWARE.contains("goldfish") ||
+                                android.os.Build.HARDWARE.contains("ranchu") ||
+                                android.os.Build.HARDWARE.contains("virtio")
+                
+                // Hardware check: If we can't find libOpenCL, GPU inference is guaranteed to fail or crash on startup
+                val hasOpenCL = File("/system/vendor/lib64/libOpenCL.so").exists() || 
+                               File("/vendor/lib64/libOpenCL.so").exists() ||
+                               File("/vendor/lib64/egl/libGLES_mali.so").exists() ||
+                               File("/vendor/lib64/libOpenCL_adreno.so").exists()
+
+                val useGpu = !isEmulator && hasOpenCL
+                if (!useGpu) {
+                    Logger.w("GemmaEngine", "Hardware accelerator check failed (isEmulator=$isEmulator, hasOpenCL=$hasOpenCL). Forcing safe CPU mode.")
                 }
-                Logger.i("GemmaEngine", "LiteRT-LM Engine initialized with CPU (4096 context)")
+
+                val config = if (!useGpu) {
+                    EngineConfig(
+                        modelPath = modelPath,
+                        backend = Backend.CPU(),
+                        visionBackend = Backend.CPU(),
+                        audioBackend = Backend.CPU(),
+                        maxNumTokens = 4096,
+                        maxNumImages = 1
+                    )
+                } else {
+                    EngineConfig(
+                        modelPath = modelPath,
+                        backend = Backend.GPU(),
+                        visionBackend = Backend.GPU(),
+                        audioBackend = Backend.CPU(),
+                        maxNumTokens = 8192,
+                        maxNumImages = 1
+                    )
+                }
+
+                withContext(engineContext) {
+                    try {
+                        val mode = if (useGpu) "GPU" else "CPU"
+                        Logger.i("GemmaEngine", "Attempting $mode initialization (LLM + Vision)...")
+                        engine = Engine(config).apply { initialize() }
+                        Logger.i("GemmaEngine", "LiteRT-LM Engine initialized with $mode")
+                    } catch (e: Exception) {
+                        Logger.w("GemmaEngine", "Primary initialization failed: ${e.message}. Falling back to full CPU.")
+                        val fallbackConfig = EngineConfig(
+                            modelPath = modelPath,
+                            backend = Backend.CPU(),
+                            visionBackend = Backend.CPU(),
+                            audioBackend = Backend.CPU(),
+                            maxNumTokens = 2048,
+                            maxNumImages = 1
+                        )
+                        engine = Engine(fallbackConfig).apply { initialize() }
+                        Logger.i("GemmaEngine", "LiteRT-LM Engine initialized with emergency CPU fallback")
+                    }
+                }
             } catch (e: Exception) {
                 Logger.e("GemmaEngine", "Failed to initialize LiteRT-LM: ${e.message}")
             }
@@ -103,74 +172,79 @@ class AndroidLlmEngine : LlmEngine {
     }
 
     override suspend fun closeSession() {
-        mutex.withLock {
-            Logger.i("GemmaEngine", "Closing active session...")
-            activeConversation?.close()
-            activeConversation = null
+        withContext(engineContext) {
+            mutex.withLock {
+                Logger.i("GemmaEngine", "Closing active session...")
+                activeConversation?.close()
+                activeConversation = null
+            }
         }
     }
 
     /** Stateless streaming. Creates a fresh conversation for every call. */
-    override fun generateStreaming(prompt: String): Flow<String> = kotlinx.coroutines.flow.flow {
+    override fun generateStreaming(prompt: String): Flow<String> = kotlinx.coroutines.flow.callbackFlow {
         val eng = engine ?: throw Exception("Engine not initialized.")
-        
+
         closeSession()
-        val conversation = withContext(Dispatchers.Default) {
-            mutex.withLock {
-                eng.createConversation()
-            }
+        val conversation = withContext(engineContext) {
+            mutex.withLock { eng.createConversation() }
         }
-        
+
         try {
-            conversation.sendMessageAsync(prompt).collect { message ->
-                currentCoroutineContext().ensureActive()
-                emit(extractText(message))
+            withContext(engineContext) {
+                conversation.sendMessageAsync(prompt).collect { message ->
+                    currentCoroutineContext().ensureActive()
+                    trySend(extractText(message))
+                }
             }
+            close()
         } catch (e: Exception) {
             if (e !is kotlinx.coroutines.CancellationException) {
                 Logger.e("GemmaEngine", "Streaming error: ${e.message}")
             }
-            emit("Error in generation stream.")
+            close(e)
         } finally {
-            withContext(Dispatchers.Default) {
-                conversation.close()
-            }
+            withContext(engineContext) { conversation.close() }
         }
+        awaitClose()
     }
 
     @OptIn(ExperimentalApi::class)
-    override fun generateMultimodalStreaming(content: MultimodalContent): Flow<String> = kotlinx.coroutines.flow.flow {
+    override fun generateMultimodalStreaming(content: MultimodalContent): Flow<String> = kotlinx.coroutines.flow.callbackFlow {
         val eng = engine ?: throw Exception("Engine not initialized.")
-        
-        // Fresh conversation for multimodal turns to prevent context pollution (Option A requirement)
-        val conversation = withContext(Dispatchers.Default) {
-            mutex.withLock {
-                eng.createConversation()
-            }
+
+        closeSession()
+
+        val conversation = withContext(engineContext) {
+            mutex.withLock { eng.createConversation() }
         }
-        
+
         try {
+            // Gemma multimodal expects image/audio before the text prompt
             val contentList = mutableListOf<Content>()
-            content.text?.let { contentList.add(Content.Text(it)) }
             content.image?.let { contentList.add(Content.ImageBytes(it)) }
             content.audio?.let { contentList.add(Content.AudioBytes(it)) }
-            
+            content.text?.let { contentList.add(Content.Text(it)) }
+
             val contents = Contents.of(contentList)
-            
-            conversation.sendMessageAsync(contents).collect { message ->
-                currentCoroutineContext().ensureActive()
-                emit(extractText(message))
+            Logger.d("GemmaEngine", "Starting multimodal prefill with ${contentList.size} parts.")
+
+            withContext(engineContext) {
+                conversation.sendMessageAsync(contents).collect { message ->
+                    currentCoroutineContext().ensureActive()
+                    trySend(extractText(message))
+                }
             }
+            close()
         } catch (e: Exception) {
             if (e !is kotlinx.coroutines.CancellationException) {
                 Logger.e("GemmaEngine", "Multimodal streaming error: ${e.message}")
             }
-            emit("Error in multimodal stream.")
+            close(e)
         } finally {
-            withContext(Dispatchers.Default) {
-                conversation.close()
-            }
+            withContext(engineContext) { conversation.close() }
         }
+        awaitClose()
     }
 
     private val mutex = kotlinx.coroutines.sync.Mutex()
@@ -185,7 +259,7 @@ class AndroidLlmEngine : LlmEngine {
     override fun generatePersistentStreaming(prompt: String, isFirstTurn: Boolean): Flow<String> = kotlinx.coroutines.flow.callbackFlow {
         val eng = engine ?: throw Exception("Engine not initialized")
         
-        val convo = withContext(Dispatchers.Default) {
+        val convo = withContext(engineContext) {
             mutex.withLock {
                 if (isFirstTurn || activeConversation == null) {
                     activeConversation?.close()
@@ -198,21 +272,22 @@ class AndroidLlmEngine : LlmEngine {
         var chunkCount = 0
         
         try {
-            convo.sendMessageAsync(prompt).collect { message ->
-                currentCoroutineContext().ensureActive()
-                if (convo.isAlive == false) {
-                    this@callbackFlow.close()
-                    return@collect
+            withContext(engineContext) {
+                convo.sendMessageAsync(prompt).collect { message ->
+                    currentCoroutineContext().ensureActive()
+                    if (convo.isAlive == false) {
+                        return@collect
+                    }
+                    val text = extractText(message)
+                    charCount += text.length
+                    chunkCount++
+                    
+                    if (chunkCount % 10 == 0) {
+                        Logger.d("GemmaEngine", "Stream Progress: $chunkCount chunks, $charCount chars")
+                    }
+                    
+                    trySend(text)
                 }
-                val text = extractText(message)
-                charCount += text.length
-                chunkCount++
-                
-                if (chunkCount % 10 == 0) {
-                    Logger.d("GemmaEngine", "Stream Progress: $chunkCount chunks, $charCount chars")
-                }
-                
-                trySend(text)
             }
             Logger.i("GemmaEngine", "Stream complete. Total: $charCount chars")
             this@callbackFlow.close()
@@ -230,13 +305,16 @@ class AndroidLlmEngine : LlmEngine {
 
     /** Releases all native engine and conversation resources. */
     override suspend fun close() {
-        mutex.withLock {
-            activeConversation?.close()
-            activeConversation = null
-            engine?.close()
-            engine = null
-            Logger.i("GemmaEngine", "Engine and session released.")
+        withContext(engineContext) {
+            mutex.withLock {
+                activeConversation?.close()
+                activeConversation = null
+                engine?.close()
+                engine = null
+                Logger.i("GemmaEngine", "Engine and session released.")
+            }
         }
+        engineContext.close()
     }
 }
 

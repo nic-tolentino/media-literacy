@@ -32,7 +32,7 @@ kotlin {
                 implementation(libs.compose.uiToolingPreview)
                 implementation(libs.androidx.activity.compose)
                 // HACKATHON REQUIREMENT: Use the LiteRT-LM (AI Edge) SDK
-                implementation("com.google.ai.edge.litertlm:litertlm-android:0.10.0")
+                implementation("com.google.ai.edge.litertlm:litertlm-android:0.10.2")
             }
         }
         commonMain.dependencies {

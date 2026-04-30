@@ -19,6 +19,7 @@ class AnalysisCoordinator(
 
     private var currentArticle: String? = null
     private var currentResult: AnalysisResult? = null
+    private var analysisJob: Job? = null
 
     /**
      * Loads a previously saved result into the coordinator without triggering inference.
@@ -40,7 +41,8 @@ class AnalysisCoordinator(
         }
 
         currentArticle = article
-        scope.launch {
+        analysisJob?.cancel()
+        analysisJob = scope.launch {
             try {
                 // Stage 1: Summary & Metrics
                 _state.value = InferenceState.Thinking("Reading article (Pre-fill)...")
@@ -98,7 +100,7 @@ class AnalysisCoordinator(
     fun sendChat(message: String): Flow<String> = flow {
         var response = ""
         // Apply V1 Verbosity & Expert Guidance framing
-        val chatPrompt = "<|turn|>user\n$message\nExpert Guidance (be concise):\n<|turn|>model\n"
+        val chatPrompt = "$message\nExpert Guidance (be concise):"
         
         inferenceService.execute(InferenceCommand.Chat(chatPrompt)).collect { token ->
             response += token
@@ -111,7 +113,8 @@ class AnalysisCoordinator(
      */
     fun startImageAnalysis(imageBytes: ByteArray, description: String = "Analyze this image for logical fallacies or bias.") {
         currentArticle = "[Image Analysis]"
-        scope.launch {
+        analysisJob?.cancel()
+        analysisJob = scope.launch {
             try {
                 _state.value = InferenceState.Thinking("Processing image...")
                 val prompt = SummaryStage.buildPrompt("IMAGE ANALYSIS: $description")
@@ -165,7 +168,8 @@ class AnalysisCoordinator(
         }
 
         currentArticle = "[Audio Analysis]"
-        scope.launch {
+        analysisJob?.cancel()
+        analysisJob = scope.launch {
             try {
                 val observations = mutableListOf<ChunkObservation>()
                 

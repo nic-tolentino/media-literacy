@@ -25,6 +25,7 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 
 import org.medialiteracy.domain.ServiceRegistry
+import org.medialiteracy.ui.rememberAudioPickerLauncher
 
 class AudioPickerScreen : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -33,6 +34,13 @@ class AudioPickerScreen : Screen {
         val navigator = LocalNavigator.currentOrThrow
         val coordinator = ServiceRegistry.analysisCoordinator
         var isRecording by remember { mutableStateOf(false) }
+
+        val launcher = rememberAudioPickerLauncher { bytes ->
+            if (bytes != null) {
+                coordinator.startAudioAnalysis(bytes)
+                navigator.push(AnalysisScreen(inputText = "[Audio Analysis]"))
+            }
+        }
 
         Scaffold(
             topBar = {
@@ -57,10 +65,9 @@ class AudioPickerScreen : Screen {
                 Surface(
                     onClick = { 
                         if (isRecording) {
-                            // SIMULATION: Stop recording and analyze 40 seconds (2 chunks)
-                            val mockAudio = ByteArray(40 * 16000 * 2) 
-                            coordinator.startAudioAnalysis(mockAudio)
-                            navigator.push(AnalysisScreen(inputText = "[Live Recording]"))
+                            launcher.stopRecording()
+                        } else {
+                            launcher.startRecording()
                         }
                         isRecording = !isRecording 
                     },
@@ -100,12 +107,7 @@ class AudioPickerScreen : Screen {
                 Spacer(modifier = Modifier.height(64.dp))
 
                 Button(
-                    onClick = { 
-                        // SIMULATION: Select a 30 second file
-                        val mockAudio = ByteArray(30 * 16000 * 2) 
-                        coordinator.startAudioAnalysis(mockAudio)
-                        navigator.push(AnalysisScreen(inputText = "[Audio File]"))
-                    },
+                    onClick = { launcher.launchGallery() },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(

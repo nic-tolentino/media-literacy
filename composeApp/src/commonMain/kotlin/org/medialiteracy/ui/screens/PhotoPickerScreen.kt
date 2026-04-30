@@ -24,6 +24,7 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 
 import org.medialiteracy.domain.ServiceRegistry
+import org.medialiteracy.ui.rememberImagePickerLauncher
 
 class PhotoPickerScreen : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -31,6 +32,13 @@ class PhotoPickerScreen : Screen {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         val coordinator = ServiceRegistry.analysisCoordinator
+
+        val launcher = rememberImagePickerLauncher { bytes ->
+            if (bytes != null) {
+                coordinator.startImageAnalysis(bytes, "User selected media for structural analysis.")
+                navigator.push(AnalysisScreen(inputText = "[Captured Media]"))
+            }
+        }
 
         Scaffold(
             topBar = {
@@ -53,12 +61,7 @@ class PhotoPickerScreen : Screen {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Surface(
-                    onClick = { 
-                        // SIMULATION: In a real app, this would capture camera bytes
-                        val mockImage = ByteArray(1024) 
-                        coordinator.startImageAnalysis(mockImage, "Scan of a newspaper front page about local election bias.")
-                        navigator.push(AnalysisScreen(inputText = "[Image Content]"))
-                    },
+                    onClick = { launcher.launchCamera() },
                     modifier = Modifier.size(200.dp),
                     shape = RoundedCornerShape(24.dp),
                     color = Color(0xFFF5F5F5),
@@ -91,11 +94,7 @@ class PhotoPickerScreen : Screen {
                 Spacer(modifier = Modifier.height(48.dp))
 
                 Button(
-                    onClick = { 
-                        val mockImage = ByteArray(1024) 
-                        coordinator.startImageAnalysis(mockImage, "Gallery photo of a political flyer.")
-                        navigator.push(AnalysisScreen(inputText = "[Gallery Photo]"))
-                    },
+                    onClick = { launcher.launchGallery() },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(

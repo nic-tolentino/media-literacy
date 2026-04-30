@@ -14,7 +14,6 @@ object SummaryStage {
     }
 
     private val summaryPromptTemplate = """
-        <|turn|>user
         You are a Media Literacy Guide. Analyze the following text and provide a structured JSON report.
         Strictly return ONLY a valid JSON object matching this schema:
         {
@@ -32,7 +31,7 @@ object SummaryStage {
         Text:
     """.trimIndent()
 
-    fun buildPrompt(article: String): String = "$summaryPromptTemplate\n$article\n<|turn|>model\n"
+    fun buildPrompt(article: String): String = "$summaryPromptTemplate\n$article\n"
 
     fun parse(raw: String): AnalysisResult {
         return try {
@@ -71,7 +70,6 @@ object SummaryStage {
  */
 object FallacyStage {
     private val deepAnalysisPromptTemplate = """
-        <|turn|>user
         As a Logic Master, dive deeper into the text. 
         Identify exactly 3 significant rhetorical patterns or logical fallacies. 
         Format EACH as: 
@@ -80,7 +78,7 @@ object FallacyStage {
         * **Analysis:** [Logic Deconstruction]
     """.trimIndent()
 
-    fun buildPrompt(): String = "$deepAnalysisPromptTemplate\n<|turn|>model\n"
+    fun buildPrompt(): String = "$deepAnalysisPromptTemplate\n"
 
     fun parse(raw: String): List<Fallacy> {
         val fallacies = mutableListOf<Fallacy>()
@@ -103,7 +101,6 @@ object AudioAnalysisStage {
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true; isLenient = true }
 
     fun buildPrompt(timestamp: String): String = """
-        <|turn|>user
         You are a specialized Audio Analysis module. Analyze this 25s audio clip (Segment $timestamp) for vocal tone, emotion, and key claims.
         Identify any logical fallacies heard in the speech.
         
@@ -116,7 +113,6 @@ object AudioAnalysisStage {
           "objectivityScore": 0-100,
           "logicScore": 0-100
         }
-        <|turn|>model
     """.trimIndent()
 
     fun parse(raw: String): ChunkObservation? {
@@ -148,7 +144,6 @@ object SynthesisStage {
         }
         
         return """
-            <|turn|>user
             You are a Media Literacy Guide. You have analyzed an audio recording in segments. 
             Synthesize these segment observations into a final, unified report.
             
@@ -157,7 +152,6 @@ object SynthesisStage {
             
             Strictly return ONLY a valid JSON object matching the primary analysis schema.
             Ensure you include "vocalTone" (synthesis of dominant tones) and "keyClaims" (deduplicated list) in the JSON.
-            <|turn|>model
         """.trimIndent()
     }
 }
