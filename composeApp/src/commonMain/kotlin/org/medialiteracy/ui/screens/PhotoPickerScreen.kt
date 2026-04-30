@@ -98,11 +98,14 @@ class PhotoPickerScreen : Screen {
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00796B))
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF00796B),
+                        contentColor = Color.White
+                    )
                 ) {
-                    Icon(Icons.Default.AddPhotoAlternate, null)
+                    Icon(Icons.Default.AddPhotoAlternate, null, tint = Color.White)
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("Select from Gallery")
+                    Text("Select from Gallery", color = Color.White)
                 }
             }
         }

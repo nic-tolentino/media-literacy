@@ -115,12 +115,13 @@ class PasteInputScreen : Screen {
                     shape = RoundedCornerShape(16.dp),
                     enabled = text.isNotBlank(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF3F51B5)
+                        containerColor = Color(0xFF3F51B5),
+                        contentColor = Color.White
                     )
                 ) {
-                    Icon(Icons.Default.AutoAwesome, null)
+                    Icon(Icons.Default.AutoAwesome, null, tint = Color.White)
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("Deconstruct with Gemma", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("Deconstruct with Gemma", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
         }

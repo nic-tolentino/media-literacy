@@ -138,10 +138,13 @@ class SettingsScreen : Screen {
                 
                 Button(
                     onClick = { /* TODO */ }, 
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828)),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFC62828),
+                        contentColor = Color.White
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Delete Model Weights")
+                    Text("Delete Model Weights", color = Color.White)
                 }
                 Text(
                     "This action cannot be undone. You will need to re-download the 1.2GB model to resume use.",

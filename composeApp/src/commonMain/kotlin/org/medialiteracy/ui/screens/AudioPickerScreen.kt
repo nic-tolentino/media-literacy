@@ -108,11 +108,14 @@ class AudioPickerScreen : Screen {
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFC62828),
+                        contentColor = Color.White
+                    )
                 ) {
-                    Icon(Icons.Default.AudioFile, null)
+                    Icon(Icons.Default.AudioFile, null, tint = Color.White)
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("Select Audio File")
+                    Text("Select Audio File", color = Color.White)
                 }
             }
         }

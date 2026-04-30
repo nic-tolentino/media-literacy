@@ -565,9 +565,12 @@ fun SourceTooLargeState(message: String, onBack: () -> Unit) {
         Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = onBack,
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A237E))
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF1A237E),
+                contentColor = Color.White
+            )
         ) {
-            Text("Back to Input")
+            Text("Back to Input", color = Color.White)
         }
     }
 }
