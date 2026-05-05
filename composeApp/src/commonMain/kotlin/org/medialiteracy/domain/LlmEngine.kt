@@ -34,7 +34,7 @@ interface LlmEngine {
      * Generates a streaming response for multimodal input (Image/Audio/Text).
      * This is typically used for stateless, deep-dive analysis of media assets.
      */
-    fun generateMultimodalStreaming(content: MultimodalContent): Flow<String>
+    fun generateMultimodalStreaming(content: MultimodalContent, isFirstTurn: Boolean = true): Flow<String>
 
     /** Returns true if there is an ongoing conversation context in memory. */
     fun hasActiveConversation(): Boolean

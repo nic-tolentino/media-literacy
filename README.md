@@ -1,7 +1,7 @@
 # Gemma 4: Media Literacy Engine 🛰️🧠
 
 > [!IMPORTANT]
-> **Documentation Hygiene**: It is a core requirement of this project to keep documentation (README, `./docs`) and in-code comments (KDoc) perfectly aligned with the implementation. Any architectural change or feature update MUST be reflected in the relevant documentation to ensure total clarity for both human developers and AI agents.
+> **Documentation Hygiene**: It is a core requirement of this project to keep documentation (README, `./docs`) and in-code comments (KDoc) perfectly aligned with the implementation, including details which describe why an approach was taken and what was considered. Any architectural change or feature update MUST be reflected in the relevant documentation to ensure total clarity for both human developers and AI agents.
 
 **Gemma 4: Media Literacy Engine** is a local-first mobile application designed to empower digital equity and safety. Built with Kotlin Multiplatform and powered by on-device AI (Gemma 4), it analyzes news sources for logical fallacies, biases, and structural integrity—all 100% offline.
 

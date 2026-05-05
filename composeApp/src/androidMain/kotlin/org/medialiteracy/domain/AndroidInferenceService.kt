@@ -77,7 +77,6 @@ class AndroidInferenceService(
             if (command is InferenceCommand.Analyze || 
                 command is InferenceCommand.Chat || 
                 command is InferenceCommand.AnalyzeMultimodal) {
-                Logger.d("InferenceService", "Initializing engine for command: $command")
                 engine.initialize(androidContext)
             }
             
@@ -93,9 +92,9 @@ class AndroidInferenceService(
             }
         } catch (e: Exception) {
             Logger.e("InferenceService", "Critical error in actor loop: ${e.message}")
-            handleInferenceError(e)
+            handleInferenceError(e, tokens)
         } finally {
-            // Ensure the flow completes for the caller
+            // Ensure the flow completes for the caller if not already closed by error
             tokens?.close()
         }
     }
@@ -109,26 +108,22 @@ class AndroidInferenceService(
         supervisorScope {
             activeGenerationJob = launch {
                 _state.value = EngineInternalState.Initializing
-                try {
-                    estimatedTokensUsed = 0
-                    _state.value = EngineInternalState.Generating
-                    
-                    engine.generatePersistentStreaming(command.prompt, isFirstTurn = true)
-                        .collect { token ->
-                            if (firstTokenTime == null) {
-                                firstTokenTime = Clock.System.now().toEpochMilliseconds()
-                            }
-                            // check for cancellation at each token
-                            ensureActive()
-                            val count = updateTokenEstimate(token)
-                            turnTokens += count
-                            tokens?.send(token)
-                            totalChunks++
+                estimatedTokensUsed = 0
+                _state.value = EngineInternalState.Generating
+                
+                engine.generatePersistentStreaming(command.prompt, isFirstTurn = true)
+                    .collect { token ->
+                        if (firstTokenTime == null) {
+                            firstTokenTime = Clock.System.now().toEpochMilliseconds()
                         }
-                    _state.value = EngineInternalState.Idle
-                } catch (e: Exception) {
-                    handleInferenceError(e)
-                }
+                        // check for cancellation at each token
+                        ensureActive()
+                        val count = updateTokenEstimate(token)
+                        turnTokens += count
+                        tokens?.send(token)
+                        totalChunks++
+                    }
+                _state.value = EngineInternalState.Idle
             }
             // Wait for the generation to finish (or be cancelled) before processing the next command
             try {
@@ -163,27 +158,23 @@ class AndroidInferenceService(
         supervisorScope {
             activeGenerationJob = launch {
                 _state.value = EngineInternalState.Generating
-                try {
-                    val multimodalContent = MultimodalContent(
-                        text = command.prompt,
-                        image = if (command.type == MultimodalType.IMAGE) command.data else null,
-                        audio = if (command.type == MultimodalType.AUDIO) command.data else null
-                    )
+                val multimodalContent = MultimodalContent(
+                    text = command.prompt,
+                    image = if (command.type == MultimodalType.IMAGE) command.data else null,
+                    audio = if (command.type == MultimodalType.AUDIO) command.data else null
+                )
 
-                    engine.generateMultimodalStreaming(multimodalContent)
-                        .collect { token ->
-                            if (firstTokenTime == null) {
-                                firstTokenTime = Clock.System.now().toEpochMilliseconds()
-                            }
-                            ensureActive()
-                            val count = updateTokenEstimate(token)
-                            turnTokens += count
-                            tokens?.send(token)
+                engine.generateMultimodalStreaming(multimodalContent, command.isFirstTurn)
+                    .collect { token ->
+                        if (firstTokenTime == null) {
+                            firstTokenTime = Clock.System.now().toEpochMilliseconds()
                         }
-                    _state.value = EngineInternalState.Idle
-                } catch (e: Exception) {
-                    handleInferenceError(e)
-                }
+                        ensureActive()
+                        val count = updateTokenEstimate(token)
+                        turnTokens += count
+                        tokens?.send(token)
+                    }
+                _state.value = EngineInternalState.Idle
             }
             try {
                 activeGenerationJob?.join()
@@ -214,21 +205,17 @@ class AndroidInferenceService(
         supervisorScope {
             activeGenerationJob = launch {
                 _state.value = EngineInternalState.Generating
-                try {
-                    engine.generatePersistentStreaming(command.message, isFirstTurn = false)
-                        .collect { token ->
-                            if (firstTokenTime == null) {
-                                firstTokenTime = Clock.System.now().toEpochMilliseconds()
-                            }
-                            ensureActive()
-                            val count = updateTokenEstimate(token)
-                            turnTokens += count
-                            tokens?.send(token)
+                engine.generatePersistentStreaming(command.message, isFirstTurn = false)
+                    .collect { token ->
+                        if (firstTokenTime == null) {
+                            firstTokenTime = Clock.System.now().toEpochMilliseconds()
                         }
-                    _state.value = EngineInternalState.Idle
-                } catch (e: Exception) {
-                    handleInferenceError(e)
-                }
+                        ensureActive()
+                        val count = updateTokenEstimate(token)
+                        turnTokens += count
+                        tokens?.send(token)
+                    }
+                _state.value = EngineInternalState.Idle
             }
             try {
                 activeGenerationJob?.join()
@@ -273,12 +260,13 @@ class AndroidInferenceService(
         _state.value = EngineInternalState.Idle
     }
 
-    private fun handleInferenceError(e: Exception) {
+    private fun handleInferenceError(e: Exception, tokens: kotlinx.coroutines.channels.SendChannel<String>?) {
         if (e is CancellationException) {
             Logger.d("InferenceService", "Generation cancelled.")
         } else {
             Logger.e("InferenceService", "Inference error: ${e.message}")
             _state.value = EngineInternalState.Error
+            tokens?.close(e)
         }
     }
 

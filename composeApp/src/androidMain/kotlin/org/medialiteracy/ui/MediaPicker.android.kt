@@ -162,7 +162,11 @@ actual class AudioPickerLauncher(
             
             audioFile?.let { file ->
                 if (file.exists()) {
-                    onResult(file.readBytes())
+                    val rawBytes = file.readBytes()
+                    // Decode to PCM before returning
+                    kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                        onResult(org.medialiteracy.domain.AudioDecoder.decodeToPcm(context, rawBytes))
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -172,7 +176,10 @@ actual class AudioPickerLauncher(
 }
 
 @Composable
-actual fun rememberAudioPickerLauncher(onResult: (ByteArray?) -> Unit): AudioPickerLauncher {
+actual fun rememberAudioPickerLauncher(
+    onLoading: (Boolean) -> Unit,
+    onResult: (ByteArray?) -> Unit
+): AudioPickerLauncher {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
@@ -180,11 +187,16 @@ actual fun rememberAudioPickerLauncher(onResult: (ByteArray?) -> Unit): AudioPic
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
+            onLoading(true)
             scope.launch {
-                val bytes = withContext(Dispatchers.IO) {
-                    context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                val pcmBytes = withContext(Dispatchers.IO) {
+                    val rawBytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    if (rawBytes != null) {
+                        org.medialiteracy.domain.AudioDecoder.decodeToPcm(context, rawBytes)
+                    } else null
                 }
-                onResult(bytes)
+                onResult(pcmBytes)
+                onLoading(false)
             }
         }
     }

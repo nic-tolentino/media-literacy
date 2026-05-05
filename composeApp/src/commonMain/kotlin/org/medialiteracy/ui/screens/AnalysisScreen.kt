@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
@@ -155,10 +156,11 @@ fun ReportContent(
     onReRunClick: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
-    Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp).verticalScroll(scrollState),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
-    ) {
+    SelectionContainer {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp).verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
         Column(modifier = Modifier.padding(top = 8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Analytics, null, tint = Color(0xFF3F51B5), modifier = Modifier.size(14.dp))
@@ -224,6 +226,30 @@ fun ReportContent(
                         icon = Icons.Default.Info,
                         iconColor = Color(0xFF424242),
                         modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+
+        // Transcription Section
+        if (!result.fullTranscript.isNullOrBlank()) {
+            AnalysisSectionCard(
+                title = "Source Transcript",
+                subtitle = "Verbatim text extracted from the source",
+                icon = Icons.Default.Description,
+                onIconClick = { onLogicHatClick("Can you verify this transcription for accuracy?") }
+            ) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        result.fullTranscript!!,
+                        modifier = Modifier.padding(12.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.DarkGray,
+                        lineHeight = 18.sp
                     )
                 }
             }
@@ -358,6 +384,7 @@ fun ReportContent(
         Spacer(modifier = Modifier.height(32.dp))
     }
 }
+}
 
 @Composable
 fun AnalysisSectionCard(
@@ -422,7 +449,9 @@ fun ThinkingState(tokens: String) {
         Spacer(modifier = Modifier.height(24.dp))
         Text("Gemma is deconstructing structure...", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(8.dp))
-        Text(tokens.takeLast(100), style = MaterialTheme.typography.bodySmall, color = Color.Gray, textAlign = TextAlign.Center)
+        SelectionContainer {
+            Text(tokens.takeLast(100), style = MaterialTheme.typography.bodySmall, color = Color.Gray, textAlign = TextAlign.Center)
+        }
     }
 }
 

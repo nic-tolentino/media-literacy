@@ -29,4 +29,7 @@ expect class AudioPickerLauncher {
  * Creates and remembers an [AudioPickerLauncher] for the current platform.
  */
 @Composable
-expect fun rememberAudioPickerLauncher(onResult: (ByteArray?) -> Unit): AudioPickerLauncher
+expect fun rememberAudioPickerLauncher(
+    onLoading: (Boolean) -> Unit = {},
+    onResult: (ByteArray?) -> Unit
+): AudioPickerLauncher

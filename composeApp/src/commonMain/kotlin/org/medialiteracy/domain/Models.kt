@@ -28,20 +28,20 @@ enum class InputType {
  */
 @Serializable
 data class AnalysisResult(
-    val summary: String,
+    val summary: String = "",
     val highlights: List<String> = emptyList(),
     val fallacies: List<Fallacy> = emptyList(),
-    val objectivityScore: Int, // 0 to 100 (High = Objective/Neutral)
-    val logicScore: Int,       // 0 to 100 (High = Structurally Sound)
-    val evidenceQuality: Int,  // 0 to 100 (High = Strong/Verified)
-    val credibilityScore: Int, // 0 to 100 (High = Trustworthy)
-    val credibility: String,
-    val primaryStrength: String,
-    val observationArea: String,
+    val objectivityScore: Int = 0,
+    val logicScore: Int = 0,
+    val evidenceQuality: Int = 0,
+    val credibilityScore: Int = 0,
+    val credibility: String = "Neutral",
+    val primaryStrength: String = "Analysis",
+    val observationArea: String = "Review",
     val isAnalyzingFallacies: Boolean = false,
-    // Multimodal extensions
     val vocalTone: String? = null,
-    val keyClaims: List<String> = emptyList()
+    val keyClaims: List<String> = emptyList(),
+    val fullTranscript: String? = null
 ) : SharedSerializable
 
 /**

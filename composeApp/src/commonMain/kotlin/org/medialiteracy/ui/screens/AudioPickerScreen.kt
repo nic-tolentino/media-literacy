@@ -35,12 +35,16 @@ class AudioPickerScreen : Screen {
         val coordinator = ServiceRegistry.analysisCoordinator
         var isRecording by remember { mutableStateOf(false) }
 
-        val launcher = rememberAudioPickerLauncher { bytes ->
-            if (bytes != null) {
-                coordinator.startAudioAnalysis(bytes)
-                navigator.push(AnalysisScreen(inputText = "[Audio Analysis]"))
+        var isProcessing by remember { mutableStateOf(false) }
+        val launcher = rememberAudioPickerLauncher(
+            onLoading = { isProcessing = it },
+            onResult = { bytes ->
+                if (bytes != null) {
+                    coordinator.startAudioAnalysis(bytes)
+                    navigator.push(AnalysisScreen(inputText = "[Audio Analysis]"))
+                }
             }
-        }
+        )
 
         Scaffold(
             topBar = {
@@ -118,6 +122,19 @@ class AudioPickerScreen : Screen {
                     Icon(Icons.Default.AudioFile, null, tint = Color.White)
                     Spacer(modifier = Modifier.width(12.dp))
                     Text("Select Audio File", color = Color.White)
+                }
+            }
+
+            if (isProcessing) {
+                Box(
+                    modifier = Modifier.fillMaxSize().background(Color.White.copy(alpha = 0.8f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = Color(0xFFC62828))
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Decoding Audio...", fontWeight = FontWeight.Bold, color = Color(0xFFC62828))
+                    }
                 }
             }
         }

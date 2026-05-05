@@ -40,6 +40,10 @@ object SummaryStage {
             
             if (jsonStart != -1 && jsonEnd > jsonStart) {
                 val jsonString = raw.substring(jsonStart, jsonEnd)
+                    .removePrefix("```json")
+                    .removePrefix("```")
+                    .removeSuffix("```")
+                    .trim()
                 json.decodeFromString<AnalysisResult>(jsonString)
             } else {
                 throw Exception("No valid JSON found")
@@ -108,6 +112,7 @@ object AudioAnalysisStage {
         {
           "timestamp": "$timestamp",
           "dominantTone": "e.g., Aggressive, rushed",
+          "transcript": "Verbatim transcription of this 25s segment.",
           "keyClaims": ["Claim 1", "Claim 2"],
           "fallacies": [{"type": "Name", "instance": "Quote"}],
           "objectivityScore": 0-100,
@@ -116,11 +121,16 @@ object AudioAnalysisStage {
     """.trimIndent()
 
     fun parse(raw: String): ChunkObservation? {
+        val cleaned = raw.trim()
+            .removePrefix("```json")
+            .removePrefix("```")
+            .removeSuffix("```")
+            .trim()
         return try {
-            val jsonStart = raw.indexOf("{")
-            val jsonEnd = raw.lastIndexOf("}") + 1
+            val jsonStart = cleaned.indexOf("{")
+            val jsonEnd = cleaned.lastIndexOf("}") + 1
             if (jsonStart != -1 && jsonEnd > jsonStart) {
-                val jsonString = raw.substring(jsonStart, jsonEnd)
+                val jsonString = cleaned.substring(jsonStart, jsonEnd)
                 json.decodeFromString<ChunkObservation>(jsonString)
             } else null
         } catch (e: Exception) { null }
@@ -150,8 +160,22 @@ object SynthesisStage {
             Observations:
             $obsList
             
-            Strictly return ONLY a valid JSON object matching the primary analysis schema.
-            Ensure you include "vocalTone" (synthesis of dominant tones) and "keyClaims" (deduplicated list) in the JSON.
+            Strictly return ONLY a valid JSON object matching this schema:
+            {
+              "summary": "Short 2-sentence executive summary.",
+              "highlights": ["Key Insight 1", "Key Insight 2"],
+              "objectivityScore": 0-100,
+              "logicScore": 0-100,
+              "evidenceQuality": 0-100,
+              "credibilityScore": 0-100,
+              "credibility": "e.g. Balanced",
+              "primaryStrength": "e.g. Logic",
+              "observationArea": "e.g. Tone",
+              "vocalTone": "Summary of prosody across segments",
+              "keyClaims": ["Claim 1", "Claim 2"]
+            }
+            
+            Ensure you include "vocalTone" and "keyClaims" in the JSON.
         """.trimIndent()
     }
 }
@@ -160,6 +184,7 @@ object SynthesisStage {
 data class ChunkObservation(
     val timestamp: String,
     val dominantTone: String,
+    val transcript: String = "",
     val keyClaims: List<String>,
     val fallacies: List<ChunkFallacy>,
     val objectivityScore: Int,

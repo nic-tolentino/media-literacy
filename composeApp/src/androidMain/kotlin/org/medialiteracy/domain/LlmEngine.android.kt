@@ -113,10 +113,16 @@ class AndroidLlmEngine : LlmEngine {
                                File("/vendor/lib64/libOpenCL.so").exists() ||
                                File("/vendor/lib64/egl/libGLES_mali.so").exists() ||
                                File("/vendor/lib64/libOpenCL_adreno.so").exists()
+                
+                Logger.d("GemmaEngine", "Hardware Check: isEmulator=$isEmulator, hasOpenCL=$hasOpenCL")
+                if (!hasOpenCL) {
+                    val libPaths = listOf("/system/vendor/lib64/", "/vendor/lib64/", "/vendor/lib64/egl/")
+                    Logger.d("GemmaEngine", "Checking paths: ${libPaths.map { p -> p to File(p).exists() }}")
+                }
 
                 val useGpu = !isEmulator && hasOpenCL
                 if (!useGpu) {
-                    Logger.w("GemmaEngine", "Hardware accelerator check failed (isEmulator=$isEmulator, hasOpenCL=$hasOpenCL). Forcing safe CPU mode.")
+                    Logger.w("GemmaEngine", "Forcing safe CPU mode.")
                 }
 
                 val config = if (!useGpu) {
@@ -187,7 +193,11 @@ class AndroidLlmEngine : LlmEngine {
 
         closeSession()
         val conversation = withContext(engineContext) {
-            mutex.withLock { eng.createConversation() }
+            mutex.withLock { 
+                val c = eng.createConversation()
+                activeConversation = c
+                c
+            }
         }
 
         try {
@@ -203,27 +213,36 @@ class AndroidLlmEngine : LlmEngine {
                 Logger.e("GemmaEngine", "Streaming error: ${e.message}")
             }
             close(e)
-        } finally {
-            withContext(engineContext) { conversation.close() }
         }
         awaitClose()
     }
 
     @OptIn(ExperimentalApi::class)
-    override fun generateMultimodalStreaming(content: MultimodalContent): Flow<String> = kotlinx.coroutines.flow.callbackFlow {
+    override fun generateMultimodalStreaming(content: MultimodalContent, isFirstTurn: Boolean): Flow<String> = kotlinx.coroutines.flow.callbackFlow {
         val eng = engine ?: throw Exception("Engine not initialized.")
 
-        closeSession()
-
         val conversation = withContext(engineContext) {
-            mutex.withLock { eng.createConversation() }
+            mutex.withLock { 
+                if (isFirstTurn || activeConversation == null) {
+                    activeConversation?.close()
+                    activeConversation = eng.createConversation()
+                }
+                activeConversation!!
+            }
         }
 
         try {
             // Gemma multimodal expects image/audio before the text prompt
             val contentList = mutableListOf<Content>()
             content.image?.let { contentList.add(Content.ImageBytes(it)) }
-            content.audio?.let { contentList.add(Content.AudioBytes(it)) }
+            content.audio?.let { 
+                val wrapped = if (it.size > 4 && it[0] == 'R'.toByte() && it[1] == 'I'.toByte() && it[2] == 'F'.toByte() && it[3] == 'F'.toByte()) {
+                    it
+                } else {
+                    AudioDecoder.wrapInWav(it)
+                }
+                contentList.add(Content.AudioBytes(wrapped)) 
+            }
             content.text?.let { contentList.add(Content.Text(it)) }
 
             val contents = Contents.of(contentList)
@@ -241,8 +260,6 @@ class AndroidLlmEngine : LlmEngine {
                 Logger.e("GemmaEngine", "Multimodal streaming error: ${e.message}")
             }
             close(e)
-        } finally {
-            withContext(engineContext) { conversation.close() }
         }
         awaitClose()
     }
@@ -282,9 +299,6 @@ class AndroidLlmEngine : LlmEngine {
                     charCount += text.length
                     chunkCount++
                     
-                    if (chunkCount % 10 == 0) {
-                        Logger.d("GemmaEngine", "Stream Progress: $chunkCount chunks, $charCount chars")
-                    }
                     
                     trySend(text)
                 }

@@ -14,10 +14,18 @@ sealed class InferenceCommand {
         val data: ByteArray, 
         val prompt: String,
         val isFirstTurn: Boolean = true
-    ) : InferenceCommand()
-    object CancelCurrent : InferenceCommand()
-    object ReleaseResources : InferenceCommand()
-    object Reset : InferenceCommand()
+    ) : InferenceCommand() {
+        override fun toString(): String = "AnalyzeMultimodal(type=$type, dataSize=${data.size}, promptLength=${prompt.length}, isFirstTurn=$isFirstTurn)"
+    }
+    object CancelCurrent : InferenceCommand() {
+        override fun toString(): String = "CancelCurrent"
+    }
+    object ReleaseResources : InferenceCommand() {
+        override fun toString(): String = "ReleaseResources"
+    }
+    object Reset : InferenceCommand() {
+        override fun toString(): String = "Reset"
+    }
 }
 
 enum class MultimodalType {

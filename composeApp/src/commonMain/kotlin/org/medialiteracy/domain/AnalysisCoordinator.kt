@@ -54,7 +54,10 @@ class AnalysisCoordinator(
                     _state.value = InferenceState.Thinking(summaryResponse)
                 }
 
-                val result = SummaryStage.parse(summaryResponse).copy(isAnalyzingFallacies = true)
+                val result = SummaryStage.parse(summaryResponse).copy(
+                    isAnalyzingFallacies = true,
+                    fullTranscript = article
+                )
                 currentResult = result
                 _state.value = InferenceState.Complete(result)
 
@@ -73,6 +76,7 @@ class AnalysisCoordinator(
                     isAnalyzingFallacies = false
                 )
                 
+                Logger.i("AnalysisCoordinator", "Analysis verification complete: ${finalResult.fallacies.size} fallacies found.")
                 currentResult = finalResult
                 _state.value = InferenceState.Complete(finalResult)
 
@@ -131,7 +135,9 @@ class AnalysisCoordinator(
                     _state.value = InferenceState.Thinking(response)
                 }
 
-                val result = SummaryStage.parse(response)
+                val result = SummaryStage.parse(response).copy(
+                    fullTranscript = response // For images, the 'response' often contains the reasoning/extraction
+                )
                 currentResult = result
                 _state.value = InferenceState.Complete(result)
                 
@@ -177,23 +183,33 @@ class AnalysisCoordinator(
                     _state.value = InferenceState.Thinking("Analyzing audio segment ${index + 1}/${chunks.size}...")
                     
                     val prompt = AudioAnalysisStage.buildPrompt(chunk.timestamp)
-                    var chunkResponse = ""
                     
+                    var chunkResponse = ""
                     inferenceService.execute(
                         InferenceCommand.AnalyzeMultimodal(
                             type = MultimodalType.AUDIO,
                             data = chunk.data,
                             prompt = prompt,
-                            isFirstTurn = true // Stateless per chunk
+                            isFirstTurn = true
                         )
                     ).collect { token ->
                         chunkResponse += token
                     }
                     
-                    AudioAnalysisStage.parse(chunkResponse)?.let { 
-                        observations.add(it)
+                    val observation = AudioAnalysisStage.parse(chunkResponse)
+                    if (observation != null) {
+                        observations.add(observation)
+                        val partialTranscript = mergeTranscripts(observations)
+                        _state.value = InferenceState.Thinking(partialTranscript)
+                        Logger.d(\"AnalysisCoordinator\", \"Chunk ${index + 1} done: transcript=${observation.transcript} scores=${observation.objectivityScore}/${observation.logicScore}\")
+                    } else {
+                        Logger.w(\"AnalysisCoordinator\", \"Chunk ${index + 1} parsing FAILED. Response: $chunkResponse\")
                     }
                 }
+                
+                val finalTranscript = mergeTranscripts(observations)
+                Logger.i("AnalysisCoordinator", "Audio processing finished. Collected ${observations.size}/${chunks.size} segments.")
+                Logger.i("AnalysisCoordinator", "FINAL AGGREGATED TRANSCRIPT:\n$finalTranscript")
 
                 if (observations.isEmpty()) {
                     _state.value = InferenceState.Error("Could not analyze audio content.")
@@ -210,7 +226,11 @@ class AnalysisCoordinator(
                     _state.value = InferenceState.Thinking(finalResponse)
                 }
 
-                val finalResult = SummaryStage.parse(finalResponse)
+                Logger.i("AnalysisCoordinator", "Aggregated full transcript: ${finalTranscript.length} characters (deduplicated).")
+                
+                val finalResult = SummaryStage.parse(finalResponse).copy(
+                    fullTranscript = finalTranscript
+                )
                 currentResult = finalResult
                 _state.value = InferenceState.Complete(finalResult)
 
@@ -219,7 +239,7 @@ class AnalysisCoordinator(
                     SavedAnalysis(
                         id = Clock.System.now().toEpochMilliseconds().toString(),
                         timestamp = Clock.System.now().toEpochMilliseconds(),
-                        originalArticleText = "[Audio Analysis]",
+                        originalArticleText = finalTranscript.ifBlank { "[Audio Analysis]" },
                         analysisResult = finalResult
                     )
                 )
@@ -230,5 +250,79 @@ class AnalysisCoordinator(
                 }
             }
         }
+    }
+
+    /**
+     * Joins transcripts while attempting to remove overlaps caused by chunking.
+     * Uses word-window matching to find the best stitch point.
+     */
+    private fun mergeTranscripts(observations: List<ChunkObservation>): String {
+        if (observations.isEmpty()) return ""
+        val result = StringBuilder(observations[0].transcript)
+        
+        for (i in 1 until observations.size) {
+            val prev = observations[i-1].transcript
+            val curr = observations[i].transcript
+            
+            val trimmedCurr = removeTranscriptOverlap(prev, curr)
+            result.append(" ").append(trimmedCurr)
+        }
+        return result.toString().trim()
+    }
+
+    internal fun removeTranscriptOverlap(prev: String, curr: String): String {
+        val prevWords = prev.split(Regex("\\s+")).filter { it.isNotBlank() }
+        val currWords = curr.split(Regex("\\s+")).filter { it.isNotBlank() }
+        
+        if (prevWords.isEmpty() || currWords.isEmpty()) return curr
+        
+        // Use a window to find the stitch point. 5 words is usually enough for uniqueness
+        // while being flexible enough for slight transcription variations.
+        val windowSize = 5
+        if (prevWords.size < windowSize || currWords.size < windowSize) return curr
+        
+        // Search back from the end of prev (up to 40 words or the whole chunk)
+        val maxLookback = 40.coerceAtMost(prevWords.size)
+        val minStartIndex = (prevWords.size - maxLookback).coerceAtLeast(0)
+        
+        // We search backwards from the end of 'prev' to find the LATEST occurrence 
+        // that matches the START of 'curr'. This is the most likely overlap point.
+        for (i in (prevWords.size - windowSize) downTo minStartIndex) {
+            val window = prevWords.subList(i, i + windowSize)
+            
+            // Look for this window in the first 40 words of curr
+            val lookahead = 40.coerceAtMost(currWords.size - windowSize)
+            for (j in 0..lookahead) {
+                if (currWords.subList(j, j + windowSize).equalsIgnoringCase(window)) {
+                    // Stitch point found! 
+                    // i is the start index of the match in prev.
+                    // j is the start index of the match in curr.
+                    
+                    // The number of words in prev from the match start to the end is (prevWords.size - i).
+                    // We assume these same words (or their equivalents) exist at the start of curr starting at j.
+                    val wordsToSkipInCurr = j + (prevWords.size - i)
+                    
+                    if (wordsToSkipInCurr < currWords.size) {
+                        return currWords.subList(wordsToSkipInCurr, currWords.size).joinToString(" ")
+                    } else {
+                        return "" // Entire chunk was an overlap
+                    }
+                }
+            }
+        }
+        
+        // Fallback: If no match, just return as is
+        return curr
+    }
+
+    private fun List<String>.equalsIgnoringCase(other: List<String>): Boolean {
+        if (size != other.size) return false
+        val regex = Regex("[^a-zA-Z0-9]")
+        for (i in indices) {
+            val w1 = this[i].replace(regex, "")
+            val w2 = other[i].replace(regex, "")
+            if (!w1.equals(w2, ignoreCase = true)) return false
+        }
+        return true
     }
 }

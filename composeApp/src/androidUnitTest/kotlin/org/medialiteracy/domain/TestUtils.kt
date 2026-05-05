@@ -40,7 +40,7 @@ open class MockLlmEngine : LlmEngine {
         }
     }
 
-    override fun generateMultimodalStreaming(content: MultimodalContent): Flow<String> = flow {
+    override fun generateMultimodalStreaming(content: MultimodalContent, isFirstTurn: Boolean): Flow<String> = flow {
         lastPrompt = content.text
         val tokens = if (tokenQueue.isNotEmpty()) tokenQueue.removeAt(0) else mockTokens
         tokens.forEach { 
