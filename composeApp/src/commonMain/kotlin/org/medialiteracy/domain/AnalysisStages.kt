@@ -114,11 +114,8 @@ object AudioAnalysisStage {
         Strictly return ONLY a valid JSON object matching this schema:
         {
           "timestamp": "$timestamp",
-          "hasMultipleSpeakers": true/false,
           "dominantTone": "Summary of tone",
-          "transcript": "[Speaker 1]: text\n\n[Speaker 2]: text",
-          "objectivityScore": 0-100,
-          "logicScore": 0-100
+          "transcript": "[Speaker 1]: text\n\n[Speaker 2]: text"
         }
     """.trimIndent()
 
@@ -161,8 +158,7 @@ object SynthesisStage {
         } else observations
 
         val obsList = safeObservations.joinToString("\n\n") { obs ->
-            val speakerFlag = if (obs.hasMultipleSpeakers) " [Multi-speaker]" else ""
-            "Segment ${obs.timestamp}$speakerFlag:\nTone: ${obs.dominantTone}\nClaims: ${obs.keyClaims.joinToString(", ")}\nFallacies: ${obs.fallacies.joinToString { "${it.type}: ${it.instance}" }}"
+            "Segment ${obs.timestamp}:\nTone: ${obs.dominantTone}"
         }
         
         return """
@@ -207,8 +203,8 @@ data class ChunkObservation(
     val transcript: String = "",
     val keyClaims: List<String> = emptyList(),
     val fallacies: List<ChunkFallacy> = emptyList(),
-    val objectivityScore: Int,
-    val logicScore: Int
+    val objectivityScore: Int = 0,
+    val logicScore: Int = 0
 )
 
 @kotlinx.serialization.Serializable

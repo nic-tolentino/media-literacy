@@ -72,9 +72,6 @@ data class AnalysisScreen(
             topBar = {
                 NewsDecoderHeader { navigator.pop() }
             },
-            bottomBar = {
-                NewsDecoderBottomNav()
-            },
             containerColor = Color.White
         ) { padding ->
             Box(modifier = Modifier.fillMaxSize().padding(padding)) {
@@ -92,8 +89,12 @@ data class AnalysisScreen(
                                     initialMessage = initialPrompt
                                 ))
                             },
-                            onReRunClick = {
-                                orchestrator.startAnalysis(inputText)
+                            onReRunClick = { newText ->
+                                if (newText != null && newText != inputText) {
+                                    navigator.push(AnalysisScreen(inputText = newText))
+                                } else {
+                                    orchestrator.startAnalysis(inputText)
+                                }
                             }
                         )
                     }
@@ -153,7 +154,7 @@ fun NewsDecoderHeader(onClose: () -> Unit) {
 fun ReportContent(
     result: AnalysisResult, 
     onLogicHatClick: (String) -> Unit,
-    onReRunClick: () -> Unit = {}
+    onReRunClick: (String?) -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
     SelectionContainer {
@@ -162,18 +163,6 @@ fun ReportContent(
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
         Column(modifier = Modifier.padding(top = 8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Analytics, null, tint = Color(0xFF3F51B5), modifier = Modifier.size(14.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    "ANALYSIS REPORT",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF3F51B5),
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 "Structural Analysis Report",
                 style = MaterialTheme.typography.headlineMedium,
@@ -186,16 +175,26 @@ fun ReportContent(
                 color = Color.Gray
             )
             Spacer(modifier = Modifier.height(16.dp))
-            OutlinedButton(
-                onClick = onReRunClick,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF3F51B5)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF3F51B5).copy(alpha = 0.5f))
-            ) {
-                Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Re-run Analysis", fontWeight = FontWeight.Bold)
+            val fullTranscript = result.fullTranscript
+            if (!fullTranscript.isNullOrBlank()) {
+                val navigator = LocalNavigator.currentOrThrow
+                    Button(
+                        onClick = { 
+                            navigator.push(TranscriptEditScreen(fullTranscript) { editedText ->
+                                onReRunClick(editedText)
+                            }) 
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF3F51B5),
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Icon(Icons.Default.Description, null, modifier = Modifier.size(18.dp), tint = Color.White)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("View & Edit Source Text", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
             }
         }
 
@@ -231,29 +230,6 @@ fun ReportContent(
             }
         }
 
-        // Transcription Section
-        if (!result.fullTranscript.isNullOrBlank()) {
-            AnalysisSectionCard(
-                title = "Source Transcript",
-                subtitle = "Verbatim text extracted from the source",
-                icon = Icons.Default.Description,
-                onIconClick = { onLogicHatClick("Can you verify this transcription for accuracy?") }
-            ) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        result.fullTranscript!!,
-                        modifier = Modifier.padding(12.dp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.DarkGray,
-                        lineHeight = 18.sp
-                    )
-                }
-            }
-        }
 
         // Multimodal Extensions: Vocal Tone
         if (result.vocalTone != null) {
@@ -287,7 +263,7 @@ fun ReportContent(
             AnalysisSectionCard(
                 title = "Audio Claims Extraction",
                 subtitle = "Key points identified in the speech segments",
-                icon = Icons.Default.List,
+                icon = Icons.AutoMirrored.Filled.List,
                 onIconClick = { onLogicHatClick("Can you list the exact evidence for these audio claims?") }
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -308,7 +284,7 @@ fun ReportContent(
             icon = Icons.Default.School,
             onIconClick = { onLogicHatClick("Can you explain how you reached this objectivity score, and how it differs from the logic metrics?") }
         ) {
-            NarrativePerspectiveSlider(result.objectivityScore / 100f)
+            NarrativePerspectiveIndicator(result.objectivityScore / 100f)
         }
 
         AnalysisSectionCard(
@@ -472,21 +448,35 @@ fun ErrorState(message: String, onRetry: () -> Unit) {
 }
 
 @Composable
-fun NarrativePerspectiveSlider(value: Float) {
+fun NarrativePerspectiveIndicator(value: Float) {
     Column {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Subjective", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-            Text("Balanced", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
             Text("Objective", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
         }
         Spacer(modifier = Modifier.height(12.dp))
         Canvas(modifier = Modifier.fillMaxWidth().height(8.dp)) {
             val width = size.width
             val height = size.height
-            drawRoundRect(Color(0xFFE0E0E0), size = size, cornerRadius = androidx.compose.ui.geometry.CornerRadius(height / 2, height / 2))
-            drawRoundRect(Color(0xFF7986CB), size = Size(width * value, height), cornerRadius = androidx.compose.ui.geometry.CornerRadius(height / 2, height / 2))
-            drawCircle(Color.White, radius = 8.dp.toPx(), center = Offset(width * value, height / 2))
-            drawCircle(Color(0xFF1A237E), radius = 6.dp.toPx(), center = Offset(width * value, height / 2), style = Stroke(width = 2.dp.toPx()))
+            // Background track
+            drawRoundRect(
+                Color(0xFFE0E0E0), 
+                size = size, 
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(height / 2, height / 2)
+            )
+            // Indicator point
+            val indicatorX = width * value
+            drawCircle(
+                Color.White, 
+                radius = 8.dp.toPx(), 
+                center = Offset(indicatorX, height / 2)
+            )
+            drawCircle(
+                Color(0xFF1A237E), 
+                radius = 6.dp.toPx(), 
+                center = Offset(indicatorX, height / 2), 
+                style = Stroke(width = 2.dp.toPx())
+            )
         }
     }
 }

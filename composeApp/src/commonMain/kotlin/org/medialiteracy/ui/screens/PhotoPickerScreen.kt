@@ -36,7 +36,7 @@ class PhotoPickerScreen : Screen {
         val launcher = rememberImagePickerLauncher { bytes ->
             if (bytes != null) {
                 coordinator.startImageAnalysis(bytes, "User selected media for structural analysis.")
-                navigator.push(AnalysisScreen(inputText = "[Captured Media]"))
+                navigator.replace(AnalysisScreen(inputText = "[Captured Media]"))
             }
         }
 

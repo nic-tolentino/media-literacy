@@ -41,7 +41,7 @@ class AudioPickerScreen : Screen {
             onResult = { bytes ->
                 if (bytes != null) {
                     coordinator.startAudioAnalysis(bytes)
-                    navigator.push(AnalysisScreen(inputText = "[Audio Analysis]"))
+                    navigator.replace(AnalysisScreen(inputText = "[Audio Analysis]"))
                 }
             }
         )

@@ -204,7 +204,7 @@ class AnalysisCoordinator(
                         observations.add(observation)
                         val partialTranscript = mergeTranscripts(observations)
                         _state.value = InferenceState.Thinking(partialTranscript)
-                        Logger.d("AnalysisCoordinator", "Chunk ${index + 1} done: transcript=${observation.transcript} scores=${observation.objectivityScore}/${observation.logicScore}")
+                        Logger.d("AnalysisCoordinator", "Chunk ${index + 1} done: transcript length=${observation.transcript.length}")
                     } else {
                         Logger.w("AnalysisCoordinator", "Chunk ${index + 1} parsing FAILED. Response: $chunkResponse")
                     }
