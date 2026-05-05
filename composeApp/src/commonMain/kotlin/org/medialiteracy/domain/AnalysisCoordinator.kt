@@ -194,6 +194,9 @@ class AnalysisCoordinator(
                         )
                     ).collect { token ->
                         chunkResponse += token
+                        _state.value = InferenceState.Thinking(
+                            "Analyzing segment ${index + 1}/${chunks.size}...\n\n$chunkResponse"
+                        )
                     }
                     
                     val observation = AudioAnalysisStage.parse(chunkResponse)
@@ -201,9 +204,9 @@ class AnalysisCoordinator(
                         observations.add(observation)
                         val partialTranscript = mergeTranscripts(observations)
                         _state.value = InferenceState.Thinking(partialTranscript)
-                        Logger.d(\"AnalysisCoordinator\", \"Chunk ${index + 1} done: transcript=${observation.transcript} scores=${observation.objectivityScore}/${observation.logicScore}\")
+                        Logger.d("AnalysisCoordinator", "Chunk ${index + 1} done: transcript=${observation.transcript} scores=${observation.objectivityScore}/${observation.logicScore}")
                     } else {
-                        Logger.w(\"AnalysisCoordinator\", \"Chunk ${index + 1} parsing FAILED. Response: $chunkResponse\")
+                        Logger.w("AnalysisCoordinator", "Chunk ${index + 1} parsing FAILED. Response: $chunkResponse")
                     }
                 }
                 
@@ -218,7 +221,7 @@ class AnalysisCoordinator(
 
                 // Final Synthesis
                 _state.value = InferenceState.Thinking("Synthesizing final report...")
-                val synthesisPrompt = SynthesisStage.buildPrompt(observations)
+                val synthesisPrompt = SynthesisStage.buildPrompt(observations, finalTranscript)
                 var finalResponse = ""
                 
                 inferenceService.execute(InferenceCommand.Analyze("audio_synthesis", synthesisPrompt)).collect { token ->
@@ -229,10 +232,29 @@ class AnalysisCoordinator(
                 Logger.i("AnalysisCoordinator", "Aggregated full transcript: ${finalTranscript.length} characters (deduplicated).")
                 
                 val finalResult = SummaryStage.parse(finalResponse).copy(
-                    fullTranscript = finalTranscript
+                    fullTranscript = finalTranscript,
+                    isAnalyzingFallacies = true
                 )
                 currentResult = finalResult
                 _state.value = InferenceState.Complete(finalResult)
+                
+                // Stage 2: Deep Fallacy Scan (Sequential/Background)
+                delay(500)
+                val fallacyPrompt = FallacyStage.buildPrompt()
+                var fallacyResponse = ""
+                
+                inferenceService.execute(InferenceCommand.Chat(fallacyPrompt)).collect { token ->
+                    fallacyResponse += token
+                }
+                
+                val fallacies = FallacyStage.parse(fallacyResponse)
+                val verifiedResult = finalResult.copy(
+                    fallacies = fallacies,
+                    isAnalyzingFallacies = false
+                )
+                
+                currentResult = verifiedResult
+                _state.value = InferenceState.Complete(verifiedResult)
 
                 // Persist to history
                 repository.saveAnalysis(
@@ -240,7 +262,7 @@ class AnalysisCoordinator(
                         id = Clock.System.now().toEpochMilliseconds().toString(),
                         timestamp = Clock.System.now().toEpochMilliseconds(),
                         originalArticleText = finalTranscript.ifBlank { "[Audio Analysis]" },
-                        analysisResult = finalResult
+                        analysisResult = verifiedResult
                     )
                 )
 

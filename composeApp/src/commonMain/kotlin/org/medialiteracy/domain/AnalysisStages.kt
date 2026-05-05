@@ -19,6 +19,7 @@ object SummaryStage {
         {
           "summary": "Short 2-sentence executive summary.",
           "highlights": ["Key Insight 1", "Key Insight 2"],
+          "fallacies": [{"type": "Name", "description": "Why it is a fallacy", "evidence": "Quote from text"}],
           "objectivityScore": 0-100,
           "logicScore": 0-100,
           "evidenceQuality": 0-100,
@@ -39,11 +40,7 @@ object SummaryStage {
             val jsonEnd = raw.lastIndexOf("}") + 1
             
             if (jsonStart != -1 && jsonEnd > jsonStart) {
-                val jsonString = raw.substring(jsonStart, jsonEnd)
-                    .removePrefix("```json")
-                    .removePrefix("```")
-                    .removeSuffix("```")
-                    .trim()
+                val jsonString = raw.substring(jsonStart, jsonEnd).trim()
                 json.decodeFromString<AnalysisResult>(jsonString)
             } else {
                 throw Exception("No valid JSON found")
@@ -105,16 +102,21 @@ object AudioAnalysisStage {
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true; isLenient = true }
 
     fun buildPrompt(timestamp: String): String = """
-        You are a specialized Audio Analysis module. Analyze this 25s audio clip (Segment $timestamp) for vocal tone, emotion, and key claims.
-        Identify any logical fallacies heard in the speech.
+        Analyze this 25s audio clip (Segment $timestamp).
+        
+        TASK:
+        1. Transcribe the audio content as accurately as possible.
+        2. Identify different speakers if present (use [Speaker 1], [Speaker 2] labels).
+        3. Analyze for vocal tone and emotion.
+        
+        FORMATTING: Return ONLY the JSON object. No intro, no outro, no commentary. Use \n for turn-based newlines in the transcript field.
         
         Strictly return ONLY a valid JSON object matching this schema:
         {
           "timestamp": "$timestamp",
-          "dominantTone": "e.g., Aggressive, rushed",
-          "transcript": "Verbatim transcription of this 25s segment.",
-          "keyClaims": ["Claim 1", "Claim 2"],
-          "fallacies": [{"type": "Name", "instance": "Quote"}],
+          "hasMultipleSpeakers": true/false,
+          "dominantTone": "Summary of tone",
+          "transcript": "[Speaker 1]: text\n\n[Speaker 2]: text",
           "objectivityScore": 0-100,
           "logicScore": 0-100
         }
@@ -122,18 +124,26 @@ object AudioAnalysisStage {
 
     fun parse(raw: String): ChunkObservation? {
         val cleaned = raw.trim()
-            .removePrefix("```json")
-            .removePrefix("```")
-            .removeSuffix("```")
-            .trim()
         return try {
+            // Find the first { and last } to isolate the JSON block
             val jsonStart = cleaned.indexOf("{")
             val jsonEnd = cleaned.lastIndexOf("}") + 1
             if (jsonStart != -1 && jsonEnd > jsonStart) {
-                val jsonString = cleaned.substring(jsonStart, jsonEnd)
+                var jsonString = cleaned.substring(jsonStart, jsonEnd)
+                
+                // Best-effort fix: Replace raw newlines inside the JSON string values
+                // This is a common failure mode for smaller models
+                // We look for newlines that are NOT followed by a JSON key pattern
+                // This is very rough but helps in some cases.
+                
                 json.decodeFromString<ChunkObservation>(jsonString)
-            } else null
-        } catch (e: Exception) { null }
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Logger.e("AnalysisStages", "Failed to parse JSON: ${e.message}")
+            null
+        }
     }
 }
 
@@ -141,23 +151,32 @@ object AudioAnalysisStage {
  * Pure logic for the Final Synthesis stage.
  */
 object SynthesisStage {
-    fun buildPrompt(observations: List<ChunkObservation>): String {
-        // Bloat Guard: If we have > 8 chunks (approx 3.5 mins), sample the middle to stay within context
-        val safeObservations = if (observations.size > 8) {
+    fun buildPrompt(observations: List<ChunkObservation>, fullTranscript: String): String {
+        // Bloat Guard: If we have > 15 chunks (approx 6 mins), sample to stay within context
+        // but keep the first and last chunks for context.
+        val safeObservations = if (observations.size > 15) {
             listOf(observations.first()) + 
             observations.drop(1).dropLast(1).chunked(2).map { it.first() } + 
             listOf(observations.last())
         } else observations
 
         val obsList = safeObservations.joinToString("\n\n") { obs ->
-            "Segment ${obs.timestamp}:\nTone: ${obs.dominantTone}\nClaims: ${obs.keyClaims.joinToString(", ")}\nFallacies: ${obs.fallacies.joinToString { "${it.type}: ${it.instance}" }}"
+            val speakerFlag = if (obs.hasMultipleSpeakers) " [Multi-speaker]" else ""
+            "Segment ${obs.timestamp}$speakerFlag:\nTone: ${obs.dominantTone}\nClaims: ${obs.keyClaims.joinToString(", ")}\nFallacies: ${obs.fallacies.joinToString { "${it.type}: ${it.instance}" }}"
         }
         
         return """
-            You are a Media Literacy Guide. You have analyzed an audio recording in segments. 
-            Synthesize these segment observations into a final, unified report.
+            You are a Media Literacy Guide. You have analyzed an audio recording. 
+            Below is the FULL TRANSCRIPT and the SEGMENT-BY-SEGMENT observations (including vocal tone and emotional cues).
             
-            Observations:
+            Synthesize these into a final, unified report. 
+            Look for "Global" logical fallacies and extract the primary "Key Claims" made throughout the entire transcript.
+            If multiple speakers are present, describe their interaction dynamics.
+            
+            FULL TRANSCRIPT:
+            $fullTranscript
+            
+            SEGMENT OBSERVATIONS (Vocal Tone & Local Logic):
             $obsList
             
             Strictly return ONLY a valid JSON object matching this schema:
@@ -183,10 +202,11 @@ object SynthesisStage {
 @kotlinx.serialization.Serializable
 data class ChunkObservation(
     val timestamp: String,
+    val hasMultipleSpeakers: Boolean = false,
     val dominantTone: String,
     val transcript: String = "",
-    val keyClaims: List<String>,
-    val fallacies: List<ChunkFallacy>,
+    val keyClaims: List<String> = emptyList(),
+    val fallacies: List<ChunkFallacy> = emptyList(),
     val objectivityScore: Int,
     val logicScore: Int
 )

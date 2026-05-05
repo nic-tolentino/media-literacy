@@ -32,6 +32,7 @@
 - Implement the whole learning tab!
 - Implement the settings tab!
 - Dynamically (or on startup?) calculate an optimal context window for the device hardware, so we can support larger inputs (text, audio, images).
+- Improve narrative tone graph - it shouldn't be a slider - just a point between objective and subjective. remove the 'balanced' label, the middle between subjective and objective isn't 'balanced'.
 
 Further improvements:
     Onboarding screen
@@ -61,6 +62,8 @@ We need to come up with a plan on:
 - How to monitor the performance of the app as a whole
 - How to monitor the performance and effectiveness of the LLM in production
 - How to assess the quality of the LLM responses before deployment of models (image to text accuracy, audio analysis accuracy, tone detection accuracy, fallacy detection accuracy, as well as the ability of the model to assess the quality of the data (image/audio) it's been given to process, to reduce the changes of major hallucinations).
+    - Also test the ability to merge audio chunks correctly.
+    - Also the ability to merge transcriptions across multiple images from a single artile correctly.
 
 Nice to have:
 - Support for multiple languages (Spanish+)
