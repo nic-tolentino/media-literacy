@@ -3,6 +3,8 @@ package org.medialiteracy.domain
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.datetime.Clock
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.decodeFromString
 
 /**
  * Orchestrates the multi-stage analysis pipeline and manages task-level state.
@@ -21,6 +23,15 @@ class AnalysisCoordinator(
     private var currentResult: AnalysisResult? = null
     private var analysisJob: Job? = null
 
+    fun reset(initialMessage: String = "Idle") {
+        analysisJob?.cancel()
+        currentResult = null
+        currentArticle = null
+        _state.value = if (initialMessage == "Idle") InferenceState.Idle else InferenceState.Thinking(initialMessage)
+    }
+    
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+
     /**
      * Loads a previously saved result into the coordinator without triggering inference.
      */
@@ -28,6 +39,15 @@ class AnalysisCoordinator(
         currentArticle = article
         currentResult = result
         _state.value = InferenceState.Complete(result)
+        
+        // Prime the engine with context in the background for chat readiness
+        scope.launch {
+            try {
+                inferenceService.execute(InferenceCommand.Prime(article)).collect()
+            } catch (e: Exception) {
+                Logger.e("AnalysisCoordinator", "Priming failed: ${e.message}")
+            }
+        }
     }
 
     /**
@@ -41,44 +61,90 @@ class AnalysisCoordinator(
         }
 
         currentArticle = article
-        analysisJob?.cancel()
+        reset("Analyzing document...")
         analysisJob = scope.launch {
             try {
-                // Stage 1: Summary & Metrics
-                _state.value = InferenceState.Thinking("Reading article (Pre-fill)...")
+                // STAGE 1: Perception (Summary & Highlights)
+                _state.value = InferenceState.Thinking("Analyzing document...")
                 val summaryPrompt = SummaryStage.buildPrompt(article)
                 
                 var summaryResponse = ""
-                inferenceService.execute(InferenceCommand.Analyze("v1_summary", summaryPrompt)).collect { token ->
+                inferenceService.execute(InferenceCommand.Analyze("text_summary", summaryPrompt)).collect { token ->
                     summaryResponse += token
                     _state.value = InferenceState.Thinking(summaryResponse)
                 }
 
-                val result = SummaryStage.parse(summaryResponse).copy(
-                    isAnalyzingFallacies = true,
+                // Initial result with summary
+                val initialResult = SummaryStage.parse(summaryResponse).copy(
+                    isSummaryLoading = false,
+                    isClaimsLoading = true,
+                    isMetricsLoading = true,
+                    isFallaciesLoading = true,
                     fullTranscript = article
                 )
-                currentResult = result
-                _state.value = InferenceState.Complete(result)
+                currentResult = initialResult
+                _state.value = InferenceState.Complete(initialResult)
 
-                // Stage 2: Deep Fallacy Scan
-                delay(500) 
+                // STAGE 2: Extraction (Claims)
+                val claimsPrompt = ClaimsStage.buildPrompt()
+                var claimsResponse = ""
+                inferenceService.execute(InferenceCommand.Chat(claimsPrompt)).collect { token ->
+                    claimsResponse += token
+                }
+
+                val claimsData = try {
+                    json.decodeFromString<AnalysisResult>(claimsResponse.trim().removeSurrounding("```json", "```"))
+                } catch (e: Exception) { initialResult }
+
+                val updatedResultWithClaims = initialResult.copy(
+                    keyClaims = claimsData.keyClaims,
+                    isClaimsLoading = false
+                )
+                currentResult = updatedResultWithClaims
+                _state.value = InferenceState.Complete(updatedResultWithClaims)
+
+                // STAGE 3: Metrication (Scores)
+                val metricsPrompt = MetricsStage.buildPrompt()
+                var metricsResponse = ""
+                inferenceService.execute(InferenceCommand.Chat(metricsPrompt)).collect { token ->
+                    metricsResponse += token
+                }
+                
+                val scoresResult = try {
+                    json.decodeFromString<AnalysisResult>(metricsResponse.trim().removeSurrounding("```json", "```"))
+                } catch (e: Exception) { updatedResultWithClaims }
+
+                val updatedResultWithScores = updatedResultWithClaims.copy(
+                    objectivityScore = scoresResult.objectivityScore,
+                    logicScore = scoresResult.logicScore,
+                    evidenceQuality = scoresResult.evidenceQuality,
+                    credibilityScore = scoresResult.credibilityScore,
+                    credibility = scoresResult.credibility,
+                    isMetricsLoading = false
+                )
+                currentResult = updatedResultWithScores
+                _state.value = InferenceState.Complete(updatedResultWithScores)
+
+
+                // STAGE 4: Fallacies (Deep Scan)
+                Logger.i("AnalysisCoordinator", "Starting background deep scan...")
                 val fallacyPrompt = FallacyStage.buildPrompt()
                 var fallacyResponse = ""
                 
                 inferenceService.execute(InferenceCommand.Chat(fallacyPrompt)).collect { token ->
                     fallacyResponse += token
                 }
+                
+                Logger.d("AnalysisCoordinator", "RAW FALLACY RESPONSE: ${fallacyResponse.takeLast(500)}")
 
                 val fallacies = FallacyStage.parse(fallacyResponse)
-                val finalResult = result.copy(
+                val verifiedResult = updatedResultWithScores.copy(
                     fallacies = fallacies,
-                    isAnalyzingFallacies = false
+                    isFallaciesLoading = false
                 )
                 
-                Logger.i("AnalysisCoordinator", "Analysis verification complete: ${finalResult.fallacies.size} fallacies found.")
-                currentResult = finalResult
-                _state.value = InferenceState.Complete(finalResult)
+                currentResult = verifiedResult
+                _state.value = InferenceState.Complete(verifiedResult)
 
                 // Persist
                 repository.saveAnalysis(
@@ -86,7 +152,7 @@ class AnalysisCoordinator(
                         id = Clock.System.now().toEpochMilliseconds().toString(),
                         timestamp = Clock.System.now().toEpochMilliseconds(),
                         originalArticleText = article,
-                        analysisResult = finalResult
+                        analysisResult = verifiedResult
                     )
                 )
 
@@ -117,39 +183,122 @@ class AnalysisCoordinator(
      */
     fun startImageAnalysis(imageBytes: ByteArray, description: String = "Analyze this image for logical fallacies or bias.") {
         currentArticle = "[Image Analysis]"
-        analysisJob?.cancel()
+        reset("Transcribing image text...")
         analysisJob = scope.launch {
             try {
-                _state.value = InferenceState.Thinking("Processing image...")
-                val prompt = SummaryStage.buildPrompt("IMAGE ANALYSIS: $description")
+                // STAGE 0: Multimodal Transcription (OCR)
+                _state.value = InferenceState.Thinking("Transcribing image text...")
+                val transPrompt = ImageTranscriptionStage.buildPrompt(description)
                 
-                var response = ""
+                var transResponse = ""
                 inferenceService.execute(
                     InferenceCommand.AnalyzeMultimodal(
                         type = MultimodalType.IMAGE,
                         data = imageBytes,
-                        prompt = prompt
+                        prompt = transPrompt
                     )
                 ).collect { token ->
-                    response += token
-                    _state.value = InferenceState.Thinking(response)
+                    transResponse += token
+                    _state.value = InferenceState.Thinking(transResponse)
                 }
 
-                val result = SummaryStage.parse(response).copy(
-                    fullTranscript = response // For images, the 'response' often contains the reasoning/extraction
-                )
-                currentResult = result
-                _state.value = InferenceState.Complete(result)
+                Logger.d("AnalysisCoordinator", "RAW TRANSCRIPTION RESPONSE: $transResponse")
+
+                val transData = SummaryStage.parse(transResponse)
+                val fullTranscript = if (!transData.fullTranscript.isNullOrBlank()) {
+                    transData.fullTranscript
+                } else {
+                    "$description\n\nAI OBSERVATION: (No clear text detected in image)"
+                }
+
+                // STAGE 1: Summary (Executive Perception)
+                _state.value = InferenceState.Thinking("Summarizing content...")
+                val summaryPrompt = SummaryStage.buildPrompt(fullTranscript)
                 
-                // Persist to history
+                var summaryResponse = ""
+                inferenceService.execute(InferenceCommand.Chat(summaryPrompt)).collect { token ->
+                    summaryResponse += token
+                    _state.value = InferenceState.Thinking(summaryResponse)
+                }
+
+                // Initial result with summary
+                val initialResult = SummaryStage.parse(summaryResponse).copy(
+                    isSummaryLoading = false,
+                    isClaimsLoading = true,
+                    isMetricsLoading = true,
+                    isFallaciesLoading = true,
+                    fullTranscript = fullTranscript
+                )
+                
+                currentResult = initialResult
+                _state.value = InferenceState.Complete(initialResult)
+
+                // STAGE 2: Extraction (Claims)
+                val claimsPrompt = ClaimsStage.buildPrompt()
+                var claimsResponse = ""
+                inferenceService.execute(InferenceCommand.Chat(claimsPrompt)).collect { token ->
+                    claimsResponse += token
+                }
+
+                val claimsData = try {
+                    json.decodeFromString<AnalysisResult>(claimsResponse.trim().removeSurrounding("```json", "```"))
+                } catch (e: Exception) { initialResult }
+
+                val updatedResultWithClaims = initialResult.copy(
+                    keyClaims = claimsData.keyClaims,
+                    isClaimsLoading = false
+                )
+                currentResult = updatedResultWithClaims
+                _state.value = InferenceState.Complete(updatedResultWithClaims)
+
+                // STAGE 3: Metrication (Scores)
+                val metricsPrompt = MetricsStage.buildPrompt()
+                var metricsResponse = ""
+                inferenceService.execute(InferenceCommand.Chat(metricsPrompt)).collect { token ->
+                    metricsResponse += token
+                }
+                
+                val scoresResult = try {
+                    json.decodeFromString<AnalysisResult>(metricsResponse.trim().removeSurrounding("```json", "```"))
+                } catch (e: Exception) { updatedResultWithClaims }
+
+                val updatedResultWithScores = updatedResultWithClaims.copy(
+                    objectivityScore = scoresResult.objectivityScore,
+                    logicScore = scoresResult.logicScore,
+                    evidenceQuality = scoresResult.evidenceQuality,
+                    credibilityScore = scoresResult.credibilityScore,
+                    credibility = scoresResult.credibility,
+                    isMetricsLoading = false
+                )
+                currentResult = updatedResultWithScores
+                _state.value = InferenceState.Complete(updatedResultWithScores)
+
+                // STAGE 4: Fallacies (Deep Scan)
+                val fallacyPrompt = FallacyStage.buildPrompt()
+                var fallacyResponse = ""
+                inferenceService.execute(InferenceCommand.Chat(fallacyPrompt)).collect { token ->
+                    fallacyResponse += token
+                }
+                
+                val fallacies = FallacyStage.parse(fallacyResponse)
+                val verifiedResult = updatedResultWithScores.copy(
+                    fallacies = fallacies,
+                    isFallaciesLoading = false
+                )
+                
+                currentResult = verifiedResult
+                _state.value = InferenceState.Complete(verifiedResult)
+
+                // Persist
                 repository.saveAnalysis(
                     SavedAnalysis(
                         id = Clock.System.now().toEpochMilliseconds().toString(),
                         timestamp = Clock.System.now().toEpochMilliseconds(),
-                        originalArticleText = "[Image Analysis] $description",
-                        analysisResult = result
+                        originalArticleText = fullTranscript,
+                        analysisResult = verifiedResult
                     )
                 )
+
             } catch (e: Exception) {
                 if (e !is CancellationException) {
                     _state.value = InferenceState.Error(e.message ?: "Image analysis failed")
@@ -174,7 +323,7 @@ class AnalysisCoordinator(
         }
 
         currentArticle = "[Audio Analysis]"
-        analysisJob?.cancel()
+        reset("Analyzing audio segment 1/${chunks.size}...")
         analysisJob = scope.launch {
             try {
                 val observations = mutableListOf<ChunkObservation>()
@@ -219,38 +368,101 @@ class AnalysisCoordinator(
                     return@launch
                 }
 
-                // Final Synthesis
-                _state.value = InferenceState.Thinking("Synthesizing final report...")
-                val synthesisPrompt = SynthesisStage.buildPrompt(observations, finalTranscript)
-                var finalResponse = ""
+                // FINAL PROGRESSIVE SYNTHESIS
+                _state.value = InferenceState.Thinking("Synthesizing report...")
                 
-                inferenceService.execute(InferenceCommand.Analyze("audio_synthesis", synthesisPrompt)).collect { token ->
-                    finalResponse += token
-                    _state.value = InferenceState.Thinking(finalResponse)
+                // Combine transcript and observations for the first prompt context
+                val obsContext = observations.joinToString("\n") { "Segment ${it.timestamp}: ${it.dominantTone}" }
+                val synthesisInput = "TRANSCRIPT:\n$finalTranscript\n\nOBSERVATIONS:\n$obsContext"
+                
+                val summaryPrompt = SummaryStage.buildPrompt(synthesisInput)
+                var summaryResponse = ""
+                inferenceService.execute(InferenceCommand.Analyze("audio_summary", summaryPrompt)).collect { token ->
+                    summaryResponse += token
+                    _state.value = InferenceState.Thinking(summaryResponse)
                 }
 
-                Logger.i("AnalysisCoordinator", "Aggregated full transcript: ${finalTranscript.length} characters (deduplicated).")
-                
-                val finalResult = SummaryStage.parse(finalResponse).copy(
-                    fullTranscript = finalTranscript,
-                    isAnalyzingFallacies = true
+                // Initial result with summary
+                val initialResult = SummaryStage.parse(summaryResponse).copy(
+                    isSummaryLoading = false,
+                    isClaimsLoading = true,
+                    isMetricsLoading = true,
+                    isVocalToneLoading = true,
+                    isFallaciesLoading = true,
+                    fullTranscript = finalTranscript
                 )
-                currentResult = finalResult
-                _state.value = InferenceState.Complete(finalResult)
+                currentResult = initialResult
+                _state.value = InferenceState.Complete(initialResult)
+
+                // STAGE 2: Extraction (Claims)
+                val claimsPrompt = ClaimsStage.buildPrompt()
+                var claimsResponse = ""
+                inferenceService.execute(InferenceCommand.Chat(claimsPrompt)).collect { token ->
+                    claimsResponse += token
+                }
+
+                val claimsData = try {
+                    json.decodeFromString<AnalysisResult>(claimsResponse.trim().removeSurrounding("```json", "```"))
+                } catch (e: Exception) { initialResult }
+
+                val updatedResultWithClaims = initialResult.copy(
+                    keyClaims = claimsData.keyClaims,
+                    isClaimsLoading = false
+                )
+                currentResult = updatedResultWithClaims
+                _state.value = InferenceState.Complete(updatedResultWithClaims)
+
+                // STAGE 3: Metrication (Scores)
+                val metricsPrompt = MetricsStage.buildPrompt()
+                var metricsResponse = ""
+                inferenceService.execute(InferenceCommand.Chat(metricsPrompt)).collect { token ->
+                    metricsResponse += token
+                }
                 
-                // Stage 2: Deep Fallacy Scan (Sequential/Background)
-                delay(500)
+                val scoresResult = try {
+                    json.decodeFromString<AnalysisResult>(metricsResponse.trim().removeSurrounding("```json", "```"))
+                } catch (e: Exception) { updatedResultWithClaims }
+
+                val updatedResultWithScores = updatedResultWithClaims.copy(
+                    objectivityScore = scoresResult.objectivityScore,
+                    logicScore = scoresResult.logicScore,
+                    evidenceQuality = scoresResult.evidenceQuality,
+                    credibilityScore = scoresResult.credibilityScore,
+                    credibility = scoresResult.credibility,
+                    isMetricsLoading = false
+                )
+                currentResult = updatedResultWithScores
+                _state.value = InferenceState.Complete(updatedResultWithScores)
+
+                // STAGE 4: Tone Synthesis
+                val tonePrompt = ToneStage.buildPrompt()
+                var toneResponse = ""
+                inferenceService.execute(InferenceCommand.Chat(tonePrompt)).collect { token ->
+                    toneResponse += token
+                }
+
+                val toneData = try {
+                    json.decodeFromString<AnalysisResult>(toneResponse.trim().removeSurrounding("```json", "```"))
+                } catch (e: Exception) { updatedResultWithScores }
+
+                val updatedResultWithTone = updatedResultWithScores.copy(
+                    vocalTone = toneData.vocalTone,
+                    isVocalToneLoading = false
+                )
+                currentResult = updatedResultWithTone
+                _state.value = InferenceState.Complete(updatedResultWithTone)
+
+                // STAGE 5: Fallacies (Deep Scan)
                 val fallacyPrompt = FallacyStage.buildPrompt()
                 var fallacyResponse = ""
-                
                 inferenceService.execute(InferenceCommand.Chat(fallacyPrompt)).collect { token ->
                     fallacyResponse += token
                 }
                 
                 val fallacies = FallacyStage.parse(fallacyResponse)
-                val verifiedResult = finalResult.copy(
+                val verifiedResult = updatedResultWithTone.copy(
                     fallacies = fallacies,
-                    isAnalyzingFallacies = false
+                    isFallaciesLoading = false
                 )
                 
                 currentResult = verifiedResult

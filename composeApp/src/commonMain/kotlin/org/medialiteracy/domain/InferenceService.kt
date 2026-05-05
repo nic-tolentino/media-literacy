@@ -26,6 +26,7 @@ sealed class InferenceCommand {
     object Reset : InferenceCommand() {
         override fun toString(): String = "Reset"
     }
+    data class Prime(val context: String) : InferenceCommand()
 }
 
 enum class MultimodalType {

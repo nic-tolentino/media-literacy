@@ -29,7 +29,6 @@ enum class InputType {
 @Serializable
 data class AnalysisResult(
     val summary: String = "",
-    val highlights: List<String> = emptyList(),
     val fallacies: List<Fallacy> = emptyList(),
     val objectivityScore: Int = 0,
     val logicScore: Int = 0,
@@ -38,7 +37,11 @@ data class AnalysisResult(
     val credibility: String = "Neutral",
     val primaryStrength: String = "Analysis",
     val observationArea: String = "Review",
-    val isAnalyzingFallacies: Boolean = false,
+    val isSummaryLoading: Boolean = false,
+    val isMetricsLoading: Boolean = false,
+    val isClaimsLoading: Boolean = false,
+    val isFallaciesLoading: Boolean = false,
+    val isVocalToneLoading: Boolean = false,
     val vocalTone: String? = null,
     val keyClaims: List<String> = emptyList(),
     val fullTranscript: String? = null

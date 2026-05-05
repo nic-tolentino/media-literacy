@@ -32,7 +32,7 @@
 - Implement the whole learning tab!
 - Implement the settings tab!
 - Dynamically (or on startup?) calculate an optimal context window for the device hardware, so we can support larger inputs (text, audio, images).
-- Improve narrative tone graph - it shouldn't be a slider - just a point between objective and subjective. remove the 'balanced' label, the middle between subjective and objective isn't 'balanced'.
+- How hard would it be to extract the text of an article that's being viewed from a WebView? That we can then feed into the LLM to analyze? That could be a cool feature. 
 
 Further improvements:
     Onboarding screen
@@ -64,6 +64,12 @@ We need to come up with a plan on:
 - How to assess the quality of the LLM responses before deployment of models (image to text accuracy, audio analysis accuracy, tone detection accuracy, fallacy detection accuracy, as well as the ability of the model to assess the quality of the data (image/audio) it's been given to process, to reduce the changes of major hallucinations).
     - Also test the ability to merge audio chunks correctly.
     - Also the ability to merge transcriptions across multiple images from a single artile correctly.
+
+Why ML Kit is the right move for V2:
+- Zero "Political" Laziness: ML Kit doesn't care about the meaning of the text; it only cares about the geometry of the characters. It won't skip "Donald Trump" because it doesn't know who that is—it just sees a series of glyphs.
+- No "Hallucinated" Summaries: As you saw in the Snoopy example, the LLM is trying to be "helpful" by shortening "commander-in-chief's antagonism" to "chief's antagonist." ML Kit will give you the literal characters every time.
+- Speed: It runs in milliseconds locally on the CPU/GPU, whereas the multimodal LLM turn takes several seconds.
+- Layout Awareness: ML Kit can detect "blocks" of text. We can actually use that to solve your concern about other articles in the photo—we could let the user tap the specific "block" they want to analyze.
 
 Nice to have:
 - Support for multiple languages (Spanish+)

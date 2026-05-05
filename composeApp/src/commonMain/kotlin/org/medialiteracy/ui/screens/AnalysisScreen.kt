@@ -1,6 +1,7 @@
 package org.medialiteracy.ui.screens
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,6 +16,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -89,12 +92,13 @@ data class AnalysisScreen(
                                     initialMessage = initialPrompt
                                 ))
                             },
-                            onReRunClick = { newText ->
-                                if (newText != null && newText != inputText) {
-                                    navigator.push(AnalysisScreen(inputText = newText))
-                                } else {
-                                    orchestrator.startAnalysis(inputText)
-                                }
+                            onReRunClick = { currentText ->
+                                navigator.push(TranscriptEditScreen(
+                                    initialText = currentText ?: inputText,
+                                    onReRun = { modifiedText ->
+                                        orchestrator.startAnalysis(modifiedText)
+                                    }
+                                ))
                             }
                         )
                     }
@@ -201,6 +205,7 @@ fun ReportContent(
         AnalysisSectionCard(
             title = "Executive Summary",
             icon = Icons.Default.School,
+            isLoading = result.summary.isBlank() && result.isSummaryLoading,
             onIconClick = { onLogicHatClick("Can you help me understand the core pillars of this argument?") }
         ) {
             Column {
@@ -232,12 +237,17 @@ fun ReportContent(
 
 
         // Multimodal Extensions: Vocal Tone
-        if (result.vocalTone != null) {
+        if (result.vocalTone != null || result.isVocalToneLoading) {
             AnalysisSectionCard(
                 title = "Vocal Tone & Emotion",
                 subtitle = "Extracted from prosodic audio analysis",
                 icon = Icons.Default.RecordVoiceOver,
-                onIconClick = { onLogicHatClick("How did you determine the emotional tone of this recording?") }
+                isLoading = result.isVocalToneLoading,
+                onIconClick = { 
+                    if (!result.isVocalToneLoading) {
+                        onLogicHatClick("How did you determine the emotional tone of this recording?") 
+                    }
+                }
             ) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -248,7 +258,7 @@ fun ReportContent(
                         Icon(Icons.Default.GraphicEq, null, tint = Color(0xFF3F51B5), modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            result.vocalTone!!,
+                            result.vocalTone ?: "",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF1A237E)
@@ -259,12 +269,13 @@ fun ReportContent(
         }
 
         // Multimodal Extensions: Key Claims
-        if (result.keyClaims.isNotEmpty()) {
+        if (result.keyClaims.isNotEmpty() || result.isClaimsLoading) {
             AnalysisSectionCard(
-                title = "Audio Claims Extraction",
-                subtitle = "Key points identified in the speech segments",
+                title = "Claims",
+                subtitle = "Key points identified in the article",
                 icon = Icons.AutoMirrored.Filled.List,
-                onIconClick = { onLogicHatClick("Can you list the exact evidence for these audio claims?") }
+                isLoading = result.isClaimsLoading,
+                onIconClick = { onLogicHatClick("Can you list the exact evidence for these claims?") }
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     result.keyClaims.forEach { claim ->
@@ -282,7 +293,8 @@ fun ReportContent(
             title = "Narrative Tone",
             subtitle = "Evaluates the degree of subjectivity and emotional framing",
             icon = Icons.Default.School,
-            onIconClick = { onLogicHatClick("Can you explain how you reached this objectivity score, and how it differs from the logic metrics?") }
+            isLoading = result.isMetricsLoading,
+            onIconClick = { onLogicHatClick("Can you explain this objectivity score?") }
         ) {
             NarrativePerspectiveIndicator(result.objectivityScore / 100f)
         }
@@ -290,7 +302,8 @@ fun ReportContent(
         AnalysisSectionCard(
             title = "Argument Metrics",
             icon = Icons.Default.School,
-            onIconClick = { onLogicHatClick("Can you please explain how you calculated these metric scores?") }
+            isLoading = result.isMetricsLoading,
+            onIconClick = { onLogicHatClick("Can you please explain these metric scores?") }
         ) {
             Box(modifier = Modifier.fillMaxWidth().height(240.dp), contentAlignment = Alignment.Center) {
                 RadarChart(
@@ -302,52 +315,25 @@ fun ReportContent(
             }
         }
 
-        Column {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Rhetorical Patterns Detected", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Surface(
-                    color = Color(0xFFF5F5F5),
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Text(
-                        "${result.fallacies.size} Observations",
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-            if (result.isAnalyzingFallacies) {
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE8EAF6)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color(0xFF3F51B5))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text("Identifying rhetorical patterns...", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("The Master is deconstructing the deep logical structure. This takes about 20s.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                        Spacer(modifier = Modifier.height(12.dp))
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth().clip(CircleShape), color = Color(0xFF3F51B5))
-                    }
-                }
-            }
-
-            if (result.fallacies.isEmpty() && !result.isAnalyzingFallacies) {
-                Text("No significant patterns detected in this initial pass.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray, modifier = Modifier.padding(16.dp))
+        AnalysisSectionCard(
+            title = "Rhetorical Patterns Detected",
+            subtitle = "Deep-scan for logical fallacies and manipulation",
+            icon = Icons.Default.Psychology,
+            isLoading = result.isFallaciesLoading,
+            onIconClick = { onLogicHatClick("Can you help me understand these rhetorical patterns better?") }
+        ) {
+            if (result.fallacies.isEmpty()) {
+                Text("No significant patterns detected in this initial pass.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
             } else {
                 result.fallacies.forEach { fallacy ->
                     PatternCard(fallacy.type, fallacy.evidence) {
-                        onLogicHatClick("Can you please explain why you flagged this specific instance of ${fallacy.type}?")
+                        onLogicHatClick("Can you explain why you flagged this specific instance of ${fallacy.type}?")
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                 }
             }
         }
+
 
         Text(
             "This report evaluates structural logic and rhetorical patterns. It does not verify factual accuracy.",
@@ -363,14 +349,36 @@ fun ReportContent(
 }
 
 @Composable
+fun SectionShimmer() {
+    val infiniteTransition = rememberInfiniteTransition()
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Box(modifier = Modifier.fillMaxWidth().height(16.dp).clip(RoundedCornerShape(4.dp)).background(Color.LightGray.copy(alpha = alpha)))
+        Spacer(modifier = Modifier.height(8.dp))
+        Box(modifier = Modifier.fillMaxWidth(0.7f).height(16.dp).clip(RoundedCornerShape(4.dp)).background(Color.LightGray.copy(alpha = alpha)))
+        Spacer(modifier = Modifier.height(16.dp))
+        Box(modifier = Modifier.fillMaxWidth().height(100.dp).clip(RoundedCornerShape(8.dp)).background(Color.LightGray.copy(alpha = alpha)))
+    }
+}
+
+@Composable
 fun AnalysisSectionCard(
     title: String, 
     subtitle: String? = null, 
     icon: ImageVector, 
+    isLoading: Boolean = false,
     onIconClick: () -> Unit = {},
     content: @Composable () -> Unit
 ) {
-    Card(
+    OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEEEEEE)),
@@ -384,12 +392,18 @@ fun AnalysisSectionCard(
                         Text(subtitle, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                     }
                 }
-                IconButton(onClick = onIconClick, modifier = Modifier.size(24.dp)) {
-                    Icon(icon, null, tint = Color(0xFF3F51B5), modifier = Modifier.size(18.dp))
+                if (!isLoading) {
+                    IconButton(onClick = onIconClick, modifier = Modifier.size(24.dp)) {
+                        Icon(icon, null, tint = Color(0xFF3F51B5), modifier = Modifier.size(18.dp))
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            content()
+            if (isLoading) {
+                SectionShimmer()
+            } else {
+                content()
+            }
         }
     }
 }
@@ -443,7 +457,16 @@ fun ErrorState(message: String, onRetry: () -> Unit) {
         Text("Analysis Failed", fontWeight = FontWeight.Bold)
         Text(message, color = Color.Gray, textAlign = TextAlign.Center)
         Spacer(modifier = Modifier.height(24.dp))
-        Button(onClick = onRetry) { Text("Retry Analysis") }
+        Button(
+            onClick = onRetry,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF3F51B5),
+                contentColor = Color.White
+            ),
+            shape = RoundedCornerShape(12.dp)
+        ) { 
+            Text("Retry Analysis", fontWeight = FontWeight.Bold, color = Color.White) 
+        }
     }
 }
 

@@ -76,6 +76,7 @@ class AndroidInferenceService(
             // Ensure engine is initialized before processing inference commands
             if (command is InferenceCommand.Analyze || 
                 command is InferenceCommand.Chat || 
+                command is InferenceCommand.Prime || 
                 command is InferenceCommand.AnalyzeMultimodal) {
                 engine.initialize(androidContext)
             }
@@ -89,6 +90,7 @@ class AndroidInferenceService(
                 is InferenceCommand.CancelCurrent -> handleCancel()
                 is InferenceCommand.ReleaseResources -> handleRelease()
                 is InferenceCommand.Reset -> handleReset()
+                is InferenceCommand.Prime -> handlePrime(command)
             }
         } catch (e: Exception) {
             Logger.e("InferenceService", "Critical error in actor loop: ${e.message}")
@@ -248,6 +250,25 @@ class AndroidInferenceService(
         _state.value = EngineInternalState.Teardown
         engine.close() 
         _state.value = EngineInternalState.Idle
+    }
+
+    private suspend fun handlePrime(command: InferenceCommand.Prime) {
+        // Priming creates a new conversation with the article text
+        // but we don't stream the response back to a channel
+        supervisorScope {
+            activeGenerationJob = launch {
+                _state.value = EngineInternalState.Initializing
+                // Silent priming - we collect tokens but don't send them anywhere
+                engine.generatePersistentStreaming(
+                    prompt = "Context: ${command.context}\n\nPlease acknowledge with 'Ready'.", 
+                    isFirstTurn = true
+                ).collect { /* silent */ }
+                _state.value = EngineInternalState.Idle
+            }
+            try {
+                activeGenerationJob?.join()
+            } catch (e: CancellationException) {}
+        }
     }
 
     private suspend fun handleReset() {

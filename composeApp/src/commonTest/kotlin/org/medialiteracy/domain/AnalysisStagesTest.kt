@@ -11,8 +11,6 @@ class AnalysisStagesTest {
         val article = "Test Article"
         val prompt = SummaryStage.buildPrompt(article)
         assertTrue(prompt.contains(article))
-        assertTrue(prompt.contains("<|turn|>user"))
-        assertTrue(prompt.contains("<|turn|>model"))
     }
 
     @Test
@@ -20,7 +18,6 @@ class AnalysisStagesTest {
         val rawJson = """
             {
               "summary": "This is a summary.",
-              "highlights": ["Point 1", "Point 2"],
               "objectivityScore": 85,
               "logicScore": 90,
               "evidenceQuality": 80,
@@ -34,7 +31,6 @@ class AnalysisStagesTest {
         val result = SummaryStage.parse(rawJson)
         assertEquals("This is a summary.", result.summary)
         assertEquals(85, result.objectivityScore)
-        assertEquals(2, result.highlights.size)
     }
 
     @Test
@@ -44,7 +40,6 @@ class AnalysisStagesTest {
             ```json
             {
               "summary": "Markdown summary.",
-              "highlights": [],
               "objectivityScore": 50,
               "logicScore": 50,
               "evidenceQuality": 50,

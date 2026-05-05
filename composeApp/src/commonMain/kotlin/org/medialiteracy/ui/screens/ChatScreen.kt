@@ -50,7 +50,7 @@ data class ChatScreen(
                 if (initialMessage != null) {
                     add(ChatMessage(initialMessage, true))
                 } else {
-                    add(ChatMessage("Hello, I am the Logic Master. How can I help you?", false))
+                    add(ChatMessage("How can I help you analyze the logic and evidence in this article?", false))
                 }
             }
         }
@@ -92,7 +92,7 @@ data class ChatScreen(
                 TopAppBar(
                     title = {
                         Column {
-                            Text("Logic Master", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Text("Analytical Insights", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                             Text("Gemma 4-E2B", style = MaterialTheme.typography.labelSmall, color = Color(0xFF4DB6AC))
                         }
                     },
@@ -143,7 +143,7 @@ data class ChatScreen(
                 if (isGenerating && streamingResponse.isEmpty()) {
                     item { 
                         Box(Modifier.padding(start = 12.dp)) {
-                           Text("Master is reasoning...", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                           Text("Gemma is reasoning...", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                         }
                     }
                 }

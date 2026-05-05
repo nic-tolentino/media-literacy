@@ -27,6 +27,7 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import cafe.adriel.voyager.core.model.rememberScreenModel
 import org.medialiteracy.domain.SavedAnalysis
+import org.medialiteracy.domain.GemmaOrchestrator
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -37,6 +38,7 @@ class HomeScreen : Screen {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         val screenModel = rememberScreenModel { HomeScreenModel() }
+        val orchestrator = rememberScreenModel { GemmaOrchestrator() }
         val savedAnalyses by screenModel.savedAnalyses.collectAsState()
         var articleToDelete by remember { mutableStateOf<SavedAnalysis?>(null) }
 
@@ -149,6 +151,7 @@ class HomeScreen : Screen {
                         RecentAnalysisCard(
                             analysis = analysis,
                             onClick = {
+                                orchestrator.reset()
                                 val rootNavigator = navigator.parent ?: navigator
                                 rootNavigator.push(AnalysisScreen(
                                     inputText = analysis.originalArticleText,

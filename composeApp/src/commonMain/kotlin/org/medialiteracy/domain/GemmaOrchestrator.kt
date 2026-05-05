@@ -63,6 +63,10 @@ class GemmaOrchestrator : ScreenModel {
         }
     }
 
+    fun reset() {
+        coordinator.reset()
+    }
+
     fun downloadModel() {
         // Mock download if needed
     }

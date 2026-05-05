@@ -1,44 +1,62 @@
 package org.medialiteracy.domain
 
-import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.*
 import kotlinx.serialization.decodeFromString
 
 /**
  * Pure logic for the Summary Analysis stage.
  */
-object SummaryStage {
-    private val json = Json { 
-        ignoreUnknownKeys = true 
-        coerceInputValues = true
-        isLenient = true
-    }
-
-    private val summaryPromptTemplate = """
-        You are a Media Literacy Guide. Analyze the following text and provide a structured JSON report.
-        Strictly return ONLY a valid JSON object matching this schema:
+/**
+ * Stage 1: Executive Perception
+ * Extracts a concise summary and key highlights from the content.
+ * This is always the first prompt in a session.
+ */
+object ImageTranscriptionStage {
+    fun buildPrompt(description: String): String = """
+        MECHANICAL TRANSCRIPTION TASK:
+        Transcribe the provided image line-by-line. 
+        
+        INSTRUCTIONS:
+        1. Identify every individual line of text in the image.
+        2. Transcribe each line verbatim, one by one.
+        3. Do not skip any text. Do not summarize.
+        
+        CONTEXT: $description
+        
+        FORMATTING: Return ONLY a valid JSON object matching this schema:
         {
-          "summary": "Short 2-sentence executive summary.",
-          "highlights": ["Key Insight 1", "Key Insight 2"],
-          "fallacies": [{"type": "Name", "description": "Why it is a fallacy", "evidence": "Quote from text"}],
-          "objectivityScore": 0-100,
-          "logicScore": 0-100,
-          "evidenceQuality": 0-100,
-          "credibilityScore": 0-100,
-          "credibility": "e.g. Balanced",
-          "primaryStrength": "e.g. Logic",
-          "observationArea": "e.g. Tone"
+          "fullTranscript": "Line 1 content\nLine 2 content\nLine 3 content..."
+        }
+    """.trimIndent()
+}
+
+/**
+ * Stage 1: Executive Perception
+ * Extracts a concise summary and key highlights from the content.
+ * This is always the first prompt in a session.
+ */
+object SummaryStage {
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+
+    fun buildPrompt(content: String): String = """
+        Perceive and summarize this content.
+        
+        TASK:
+        Provide a 2-sentence executive summary.
+        
+        FORMATTING: Return ONLY a valid JSON object matching this schema:
+        {
+          "summary": "2-sentence summary"
         }
         
-        Text:
+        CONTENT:
+        ${content.take(8000)} 
     """.trimIndent()
-
-    fun buildPrompt(article: String): String = "$summaryPromptTemplate\n$article\n"
 
     fun parse(raw: String): AnalysisResult {
         return try {
             val jsonStart = raw.indexOf("{")
             val jsonEnd = raw.lastIndexOf("}") + 1
-            
             if (jsonStart != -1 && jsonEnd > jsonStart) {
                 val jsonString = raw.substring(jsonStart, jsonEnd).trim()
                 json.decodeFromString<AnalysisResult>(jsonString)
@@ -46,51 +64,132 @@ object SummaryStage {
                 throw Exception("No valid JSON found")
             }
         } catch (e: Exception) {
-            // Minimal fallback for stability
-            AnalysisResult(
-                summary = "Parsing failed. Content: ${raw.take(200)}...",
-                highlights = emptyList(),
-                fallacies = emptyList(),
-                objectivityScore = 0,
-                logicScore = 0,
-                evidenceQuality = 0,
-                credibility = "Error",
-                credibilityScore = 0,
-                primaryStrength = "System",
-                observationArea = "Parsing",
-                isAnalyzingFallacies = false,
-                vocalTone = null,
-                keyClaims = emptyList()
-            )
+            AnalysisResult(summary = "Analysis parsing error. $raw")
         }
     }
 }
 
 /**
- * Pure logic for the Deep Fallacy Scan stage.
+ * Stage 2: Metrication
+ * Calculates structural scores (0-100).
  */
+object MetricsStage {
+    fun buildPrompt(): String = """
+        Analyze the structural integrity and framing of the previously provided content.
+        
+        TASK:
+        Provide scores from 0-100 for:
+        1. Objectivity (100 = Neutral framing, no bias)
+        2. Logic (100 = No fallacies, consistent)
+        3. Evidence (100 = Verifiable support)
+        4. Credibility (100 = Trustworthy)
+        5. A qualitative label (e.g. "Highly Credible", "Mixed")
+        
+        FORMATTING: Return ONLY a valid JSON object matching this schema:
+        {
+          "objectivityScore": 0-100,
+          "logicScore": 0-100,
+          "evidenceQuality": 0-100,
+          "credibilityScore": 0-100,
+          "credibility": "Label"
+        }
+    """.trimIndent()
+}
+
+/**
+ * Stage 3: Extraction
+ * Identifies the specific claims made.
+ */
+object ClaimsStage {
+    fun buildPrompt(): String = """
+        Extract the primary claims made in the previously provided content.
+        
+        TASK:
+        List the 3-5 most significant factual or argumentative claims.
+        
+        FORMATTING: Return ONLY a valid JSON object matching this schema:
+        {
+          "keyClaims": ["Claim 1", "Claim 2"]
+        }
+    """.trimIndent()
+}
+/**
+ * Stage 4: Tone Synthesis (Audio only)
+ * Consolidates prosody observations.
+ */
+object ToneStage {
+    fun buildPrompt(): String = """
+        Synthesize the vocal tone and emotional framing based on the previously provided segment observations.
+        
+        TASK:
+        Provide a 1-sentence summary of the overall vocal tone.
+        
+        FORMATTING: Return ONLY a valid JSON object matching this schema:
+        {
+          "vocalTone": "Summary of prosody"
+        }
+    """.trimIndent()
+}
 object FallacyStage {
     private val deepAnalysisPromptTemplate = """
-        As a Logic Master, dive deeper into the text. 
-        Identify exactly 3 significant rhetorical patterns or logical fallacies. 
-        Format EACH as: 
-        #### [N]. [Name]
-        * **Instance:** [Quote]
-        * **Analysis:** [Logic Deconstruction]
+        As an expert in Logic and Critical Thinking, identify exactly 3 significant rhetorical patterns or logical fallacies. 
+        Return ONLY a JSON array of objects with these keys:
+        - "type": Name of the pattern
+        - "evidence": The primary literal quote from the text
+        - "description": 1 sentence explaining why this is relevant, followed by a newline and brief supporting quotes or phrases.
     """.trimIndent()
 
     fun buildPrompt(): String = "$deepAnalysisPromptTemplate\n"
 
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+
     fun parse(raw: String): List<Fallacy> {
         val fallacies = mutableListOf<Fallacy>()
-        val fallacyRegex = Regex("#### \\d+\\. ([^\\n]+)[\\s\\S]*?\\*\\s+\\*\\*Instance:\\*\\*\\s+([^\\n]+)[\\s\\S]*?\\*\\s+\\*\\*Analysis:\\*\\*\\s+([\\s\\S]*?)(?=####|###|Conclusion|$)")
-        fallacyRegex.findAll(raw).forEach { match ->
-            fallacies.add(Fallacy(
-                type = match.groupValues[1].trim(),
-                description = "Logical Fallacy Detected",
-                evidence = "${match.groupValues[2].trim()}\n\n${match.groupValues[3].trim()}"
-            ))
+        
+        // 1. Primary: JSON Parsing
+        try {
+            val jsonStart = raw.indexOf("[")
+            val jsonEnd = raw.lastIndexOf("]")
+            if (jsonStart != -1 && jsonEnd != -1 && jsonEnd > jsonStart) {
+                val jsonStr = raw.substring(jsonStart, jsonEnd + 1)
+                val element = json.parseToJsonElement(jsonStr)
+                if (element is JsonArray) {
+                    element.forEach { item ->
+                        if (item is JsonObject) {
+                            val type = item["type"]?.jsonPrimitive?.content 
+                                ?: item["name"]?.jsonPrimitive?.content 
+                                ?: "Unknown Pattern"
+                            val evidence = item["evidence"]?.jsonPrimitive?.content 
+                                ?: item["instance"]?.jsonPrimitive?.content 
+                                ?: item["quote"]?.jsonPrimitive?.content 
+                                ?: ""
+                            val description = item["description"]?.jsonPrimitive?.content 
+                                ?: item["analysis"]?.jsonPrimitive?.content 
+                                ?: "Logical Deconstruction"
+                            
+                            if (evidence.isNotBlank()) {
+                                fallacies.add(Fallacy(type, description, evidence))
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Fallback to Markdown if JSON fails
         }
+
+        // 2. Secondary: Markdown Regex Fallback
+        if (fallacies.isEmpty()) {
+            val fallacyRegex = Regex("(?i)#{3,4}\\s*(?:\\d+\\.)?\\s*([^\\n]+)[\\s\\S]*?[*\\-]\\s*(?:\\*\\*)?Instance(?:\\*\\*)?:?\\s*([^\\n]+)[\\s\\S]*?[*\\-]\\s*(?:\\*\\*)?Analysis(?:\\*\\*)?:?\\s*([\\s\\S]*?)(?=#{3,4}|###|Conclusion|$)")
+            fallacyRegex.findAll(raw).forEach { match ->
+                fallacies.add(Fallacy(
+                    type = match.groupValues[1].trim(),
+                    description = "Logical Fallacy Detected",
+                    evidence = "${match.groupValues[2].trim()}\n\n${match.groupValues[3].trim()}"
+                ))
+            }
+        }
+        
         return fallacies
     }
 }
@@ -178,12 +277,11 @@ object SynthesisStage {
             Strictly return ONLY a valid JSON object matching this schema:
             {
               "summary": "Short 2-sentence executive summary.",
-              "highlights": ["Key Insight 1", "Key Insight 2"],
               "objectivityScore": 0-100,
               "logicScore": 0-100,
               "evidenceQuality": 0-100,
               "credibilityScore": 0-100,
-              "credibility": "e.g. Balanced",
+              "credibility": "e.g. Highly Credible",
               "primaryStrength": "e.g. Logic",
               "observationArea": "e.g. Tone",
               "vocalTone": "Summary of prosody across segments",
@@ -198,13 +296,10 @@ object SynthesisStage {
 @kotlinx.serialization.Serializable
 data class ChunkObservation(
     val timestamp: String,
-    val hasMultipleSpeakers: Boolean = false,
     val dominantTone: String,
     val transcript: String = "",
     val keyClaims: List<String> = emptyList(),
-    val fallacies: List<ChunkFallacy> = emptyList(),
-    val objectivityScore: Int = 0,
-    val logicScore: Int = 0
+    val fallacies: List<ChunkFallacy> = emptyList()
 )
 
 @kotlinx.serialization.Serializable

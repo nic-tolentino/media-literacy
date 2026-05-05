@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import cafe.adriel.voyager.core.model.rememberScreenModel
+import org.medialiteracy.domain.GemmaOrchestrator
 
 class PasteInputScreen : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -25,6 +27,8 @@ class PasteInputScreen : Screen {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         var text by remember { mutableStateOf("") }
+
+        val orchestrator = rememberScreenModel { GemmaOrchestrator() }
 
         Scaffold(
             topBar = {
@@ -75,40 +79,41 @@ class PasteInputScreen : Screen {
                             label = { Text(article.title) },
                             colors = AssistChipDefaults.assistChipColors(
                                 labelColor = Color(0xFF3F51B5)
-                            ),
-                            border = AssistChipDefaults.assistChipBorder(
-                                borderColor = Color(0xFF3F51B5),
-                                borderWidth = 1.dp
-                            )
-                        )
-                    }
-                }
-                
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    placeholder = { 
-                        Text("Paste the full text of the article or speech you want to analyze...") 
-                    },
-                    shape = RoundedCornerShape(16.dp),
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = Color(0xFF3F51B5),
-                        unfocusedBorderColor = Color.LightGray
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Button(
-                    onClick = {
-                        if (text.isNotBlank()) {
-                            // Use replace so backing out from AnalysisScreen goes to Home
-                            navigator.replace(AnalysisScreen(text))
-                        }
-                    },
+                              ),
+                              border = AssistChipDefaults.assistChipBorder(
+                                  borderColor = Color(0xFF3F51B5),
+                                  borderWidth = 1.dp
+                              )
+                          )
+                      }
+                  }
+                  
+                  OutlinedTextField(
+                      value = text,
+                      onValueChange = { text = it },
+                      modifier = Modifier
+                          .fillMaxWidth()
+                          .weight(1f),
+                      placeholder = { 
+                          Text("Paste the full text of the article or speech you want to analyze...") 
+                      },
+                      shape = RoundedCornerShape(16.dp),
+                      colors = TextFieldDefaults.outlinedTextFieldColors(
+                          focusedBorderColor = Color(0xFF3F51B5),
+                          unfocusedBorderColor = Color.LightGray
+                      )
+                  )
+  
+                  Spacer(modifier = Modifier.height(24.dp))
+  
+                  Button(
+                      onClick = {
+                          if (text.isNotBlank()) {
+                              orchestrator.reset()
+                              // Use replace so backing out from AnalysisScreen goes to Home
+                              navigator.replace(AnalysisScreen(text))
+                          }
+                      },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(64.dp),
