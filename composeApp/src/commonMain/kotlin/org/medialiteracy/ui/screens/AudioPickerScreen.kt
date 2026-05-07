@@ -1,4 +1,5 @@
 package org.medialiteracy.ui.screens
+import org.medialiteracy.ui.components.AppBarTitle
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -49,7 +50,7 @@ class AudioPickerScreen : Screen {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Analyze Audio", fontWeight = FontWeight.Bold) },
+                    title = { AppBarTitle("Analyze Audio") },
                     navigationIcon = {
                         IconButton(onClick = { navigator.pop() }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")

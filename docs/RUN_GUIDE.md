@@ -1,6 +1,6 @@
 # Run Guide: Android Studio
 
-To run the **Gemma4ML** project on an Android device or emulator, follow these steps to configure your IDE.
+To run the **News Decoder** project on an Android device or emulator, follow these steps to configure your IDE.
 
 ## 1. Import the Project
 *   Open **Android Studio**.

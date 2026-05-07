@@ -21,6 +21,11 @@ class IosLlmEngine : LlmEngine {
 
     override fun hasActiveConversation(): Boolean = false
     
+    override fun generateMultimodalStreaming(content: MultimodalContent, isFirstTurn: Boolean): Flow<String> = flow {
+        delay(500)
+        emit("This is a multimodal response from the iOS No-Op engine.")
+    }
+
     override suspend fun closeSession() {
         // No-op for iOS stub
     }

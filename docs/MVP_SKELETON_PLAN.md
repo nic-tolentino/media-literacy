@@ -1,6 +1,6 @@
 # MVP Skeleton Implementation Plan
 
-This document outlines the exact technical implementation plan for scaffolding the initial Gemma4ML Kotlin Multiplatform app skeleton. The goal is to establish a working cross-platform foundation with the necessary navigation and architectural boundaries before injecting the complex LiteRT/Gemma weights.
+This document outlines the exact technical implementation plan for scaffolding the initial News Decoder Kotlin Multiplatform app skeleton. The goal is to establish a working cross-platform foundation with the necessary navigation and architectural boundaries before injecting the complex LiteRT/Gemma weights.
 
 ## 1. Project Initialization & Structure
 **Approach:** Base configuration utilizes the JetBrains Kotlin Multiplatform Wizard output. I will scaffold the specific architectural patterns (Clean Architecture / MVI) inside the `composeApp/src/commonMain` directory.

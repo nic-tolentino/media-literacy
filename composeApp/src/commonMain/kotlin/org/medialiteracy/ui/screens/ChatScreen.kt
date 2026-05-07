@@ -1,4 +1,5 @@
 package org.medialiteracy.ui.screens
+import org.medialiteracy.ui.components.AppBarTitle
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -90,12 +91,7 @@ data class ChatScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = {
-                        Column {
-                            Text("Analytical Insights", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                            Text("Gemma 4-E2B", style = MaterialTheme.typography.labelSmall, color = Color(0xFF4DB6AC))
-                        }
-                    },
+                    title = { AppBarTitle("AI Logic Analyst") },
                     navigationIcon = {
                         IconButton(onClick = { navigator.pop() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
                     }

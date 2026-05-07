@@ -99,3 +99,42 @@ sealed class InferenceState {
     /** Initial model weight download in progress; progress is 0.0 to 1.0. */
     data class DownloadingModel(val progress: Float) : InferenceState()
 }
+
+/**
+ * Learning Hub Data Models (Phase 0)
+ */
+
+@Serializable
+data class Curriculum(
+    val categories: List<TacticCategory>
+) : SharedSerializable
+
+@Serializable
+data class TacticCategory(
+    val id: String,
+    val title: String,
+    val tactics: List<Tactic>
+) : SharedSerializable
+
+@Serializable
+data class Tactic(
+    val id: String,
+    val title: String,
+    val definition: String,
+    val canonical_example: String
+) : SharedSerializable
+
+@Serializable
+data class ResourcePortal(
+    val resources: List<MediaResource>
+) : SharedSerializable
+
+@Serializable
+data class MediaResource(
+    val id: String,
+    val title: String,
+    val category: String,
+    val description: String,
+    val url: String,
+    val author: String
+) : SharedSerializable

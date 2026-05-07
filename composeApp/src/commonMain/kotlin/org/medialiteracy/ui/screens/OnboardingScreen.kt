@@ -1,6 +1,7 @@
 package org.medialiteracy.ui.screens
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -14,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.model.rememberScreenModel
@@ -23,6 +25,9 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import org.medialiteracy.domain.GemmaOrchestrator
 import org.medialiteracy.domain.InferenceState
 import org.medialiteracy.ui.tabs.TabHost
+import org.jetbrains.compose.resources.painterResource
+import medialiteracy.composeapp.generated.resources.Res
+import medialiteracy.composeapp.generated.resources.app_logo
 
 class OnboardingScreen : Screen {
     @Composable
@@ -41,12 +46,11 @@ class OnboardingScreen : Screen {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                // Header Icon
-                Icon(
-                    Icons.Default.Security, 
-                    contentDescription = null, 
-                    modifier = Modifier.size(80.dp),
-                    tint = Color(0xFF3F51B5)
+                // Header Logo
+                Image(
+                    painter = painterResource(Res.drawable.app_logo),
+                    contentDescription = "News Decoder Logo",
+                    modifier = Modifier.size(120.dp)
                 )
                 
                 Spacer(modifier = Modifier.height(32.dp))

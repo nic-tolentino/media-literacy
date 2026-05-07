@@ -1,4 +1,4 @@
-# Gemma4ML: High-Level Project Plan
+# News Decoder: High-Level Project Plan
 
 ## 1. Strategic Alignment (Kaggle Hackathon Tracks)
 * **Safety & Trust**: Pioneer explainable AI that unmasks logical fallacies and manipulation.

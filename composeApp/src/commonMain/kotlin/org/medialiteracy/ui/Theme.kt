@@ -1,8 +1,15 @@
 package org.medialiteracy.ui
 
 import androidx.compose.material3.*
+import androidx.compose.foundation.IndicationNodeFactory
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.sp
 
@@ -34,7 +41,6 @@ fun AppTheme(content: @Composable () -> Unit) {
         headlineLarge = TextStyle(
             fontSize = 32.sp,
             color = NeutralBlack
-            // TODO: Noto Serif
         ),
         headlineMedium = TextStyle(
             fontSize = 24.sp,
@@ -43,13 +49,26 @@ fun AppTheme(content: @Composable () -> Unit) {
         bodyLarge = TextStyle(
             fontSize = 16.sp,
             color = NeutralBlack
-            // TODO: Work Sans
         )
     )
 
     MaterialTheme(
         colorScheme = LightColorScheme,
-        typography = typography,
-        content = content
-    )
+        typography = typography
+    ) {
+        // Fallback to avoid IndicationNodeFactory crash in newer Compose versions
+        // when the ripple system is mismatched.
+        CompositionLocalProvider(LocalIndication provides DefaultDebugIndication) {
+            content()
+        }
+    }
+}
+
+private object DefaultDebugIndication : IndicationNodeFactory {
+    override fun create(interactionSource: InteractionSource): Modifier.Node {
+        return object : Modifier.Node() {}
+    }
+
+    override fun equals(other: Any?) = other === this
+    override fun hashCode() = 0
 }

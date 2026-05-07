@@ -1,4 +1,5 @@
 package org.medialiteracy.ui.screens
+import org.medialiteracy.ui.components.AppBarTitle
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,7 +34,7 @@ class PasteInputScreen : Screen {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Paste Content", fontWeight = FontWeight.Bold) },
+                    title = { AppBarTitle("Paste Content") },
                     navigationIcon = {
                         IconButton(onClick = { navigator.pop() }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")

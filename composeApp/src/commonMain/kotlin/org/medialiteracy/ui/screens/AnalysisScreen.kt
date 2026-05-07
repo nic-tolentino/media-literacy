@@ -1,5 +1,7 @@
 package org.medialiteracy.ui.screens
 
+import org.medialiteracy.ui.components.AppBarTitle
+
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -92,6 +94,9 @@ data class AnalysisScreen(
                                     initialMessage = initialPrompt
                                 ))
                             },
+                            onTacticClick = { tacticName ->
+                                navigator.push(TacticsLibraryScreen(initialQuery = tacticName))
+                            },
                             onReRunClick = { currentText ->
                                 navigator.push(TranscriptEditScreen(
                                     initialText = currentText ?: inputText,
@@ -121,34 +126,18 @@ data class AnalysisScreen(
     }
 }
 
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewsDecoderHeader(onClose: () -> Unit) {
     CenterAlignedTopAppBar(
         title = {
-            Text(
-                "News Decoder",
-                color = Color(0xFF1A237E),
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 20.sp,
-                fontFamily = FontFamily.Serif
-            )
+            AppBarTitle("News Decoder")
         },
         navigationIcon = {
             IconButton(onClick = onClose) {
                 Icon(Icons.Default.Close, contentDescription = "Close", tint = Color(0xFF1A237E))
-            }
-        },
-        actions = {
-            Box(
-                modifier = Modifier
-                    .padding(end = 12.dp)
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFE0E0E0)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.Person, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
             }
         }
     )
@@ -158,6 +147,7 @@ fun NewsDecoderHeader(onClose: () -> Unit) {
 fun ReportContent(
     result: AnalysisResult, 
     onLogicHatClick: (String) -> Unit,
+    onTacticClick: (String) -> Unit = {},
     onReRunClick: (String?) -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
@@ -326,9 +316,16 @@ fun ReportContent(
                 Text("No significant patterns detected in this initial pass.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
             } else {
                 result.fallacies.forEach { fallacy ->
-                    PatternCard(fallacy.type, fallacy.evidence) {
-                        onLogicHatClick("Can you explain why you flagged this specific instance of ${fallacy.type}?")
-                    }
+                    PatternCard(
+                        type = fallacy.type,
+                        evidence = fallacy.evidence,
+                        onChatClick = {
+                            onLogicHatClick("Can you explain why you flagged this specific instance of ${fallacy.type}?")
+                        },
+                        onInfoClick = {
+                            onTacticClick(fallacy.type)
+                        }
+                    )
                     Spacer(modifier = Modifier.height(12.dp))
                 }
             }
@@ -550,7 +547,12 @@ fun RadarChart(logic: Float, objectivity: Float, evidence: Float, credibility: F
 }
 
 @Composable
-fun PatternCard(type: String, evidence: String, onClick: () -> Unit) {
+fun PatternCard(
+    type: String, 
+    evidence: String, 
+    onChatClick: () -> Unit,
+    onInfoClick: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFFAFAFA)),
@@ -565,8 +567,13 @@ fun PatternCard(type: String, evidence: String, onClick: () -> Unit) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(evidence, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
             }
-            IconButton(onClick = onClick, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.Default.School, null, tint = Color(0xFF3F51B5), modifier = Modifier.size(18.dp))
+            Row {
+                IconButton(onClick = onInfoClick, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Default.Info, "Glossary", tint = Color(0xFF3F51B5), modifier = Modifier.size(18.dp))
+                }
+                IconButton(onClick = onChatClick, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.Chat, "Chat", tint = Color(0xFF00897B), modifier = Modifier.size(18.dp))
+                }
             }
         }
     }

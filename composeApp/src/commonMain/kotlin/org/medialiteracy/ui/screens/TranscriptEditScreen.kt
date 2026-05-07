@@ -1,4 +1,5 @@
 package org.medialiteracy.ui.screens
+import org.medialiteracy.ui.components.AppBarTitle
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -32,7 +33,7 @@ data class TranscriptEditScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Edit Source Text", fontWeight = FontWeight.Bold) },
+                    title = { AppBarTitle("Edit Source Text") },
                     navigationIcon = {
                         IconButton(onClick = { navigator.pop() }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")

@@ -1,6 +1,6 @@
-# Gemma4ML Project Setup Plan
+# News Decoder Project Setup Plan
 
-This document defines the step-by-step setup required to initialize the Gemma4ML Kotlin Multiplatform (KMP) project, shifting the design system to the "Clarity and Trust" Light theme and establishing "Home Intake" as the primary landing experience.
+This document defines the step-by-step setup required to initialize the News Decoder Kotlin Multiplatform (KMP) project, shifting the design system to the "Clarity and Trust" Light theme and establishing "Home Intake" as the primary landing experience.
 
 ## 1. Environment Prerequisites
 - **Android Studio** (Koala or newer) installed with the Kotlin Multiplatform plugin.
@@ -10,7 +10,7 @@ This document defines the step-by-step setup required to initialize the Gemma4ML
 
 ## 2. Project Scaffolding
 Generate the base project (e.g., via the Kotlin Multiplatform web wizard) with the following parameters:
-- **Project Name:** Gemma4ML
+- **Project Name:** News Decoder
 - **Target Platforms:** Android, iOS
 - **UI Framework:** Compose Multiplatform (sharing UI across both platforms)
 - **Shared Module Name:** `shared`

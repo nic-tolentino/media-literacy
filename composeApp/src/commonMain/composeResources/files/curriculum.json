@@ -1,0 +1,64 @@
+{
+  "categories": [
+    {
+      "id": "fallacies",
+      "title": "Logical Fallacies",
+      "tactics": [
+        {
+          "id": "ad_hominem",
+          "title": "Ad Hominem",
+          "definition": "Attacking the person making the argument rather than the argument itself.",
+          "canonical_example": "You can't trust his economic plan; he never finished college."
+        },
+        {
+          "id": "strawman",
+          "title": "Strawman",
+          "definition": "Misrepresenting an opponent's position to make it easier to attack.",
+          "canonical_example": "Person A: 'We should invest more in education.' Person B: 'Why do you want to leave our country defenseless by cutting military spending?'"
+        },
+        {
+          "id": "false_dilemma",
+          "title": "False Dilemma",
+          "definition": "Presenting only two options when many more exist; 'black-and-white' thinking.",
+          "canonical_example": "Either you're with us, or you're with the terrorists."
+        },
+        {
+          "id": "slippery_slope",
+          "title": "Slippery Slope",
+          "definition": "Claiming that a small first step will inevitably lead to a chain of related negative events.",
+          "canonical_example": "If we allow students to redo one assignment, they'll soon expect to redo everything, and academic standards will vanish."
+        },
+        {
+          "id": "hasty_generalization",
+          "title": "Hasty Generalization",
+          "definition": "Drawing a broad conclusion from a small or unrepresentative sample size.",
+          "canonical_example": "I met two people from that city and they were both rude, so everyone there must be rude."
+        },
+        {
+          "id": "circular_reasoning",
+          "title": "Circular Reasoning",
+          "definition": "The conclusion of the argument is already assumed in the premise.",
+          "canonical_example": "The law is valid because it is the law."
+        }
+      ]
+    },
+    {
+      "id": "biases",
+      "title": "Cognitive Biases",
+      "tactics": [
+        {
+          "id": "confirmation_bias",
+          "title": "Confirmation Bias",
+          "definition": "The tendency to search for, interpret, and recall information that confirms one's pre-existing beliefs.",
+          "canonical_example": "A person who believes a certain health trend is effective only reads articles that praise it, ignoring scientific rebuttals."
+        },
+        {
+          "id": "backfire_effect",
+          "title": "Backfire Effect",
+          "definition": "When presenting evidence that contradicts a person's belief actually strengthens that belief.",
+          "canonical_example": "Correcting a political myth often causes the person to believe the myth even more strongly to protect their identity."
+        }
+      ]
+    }
+  ]
+}

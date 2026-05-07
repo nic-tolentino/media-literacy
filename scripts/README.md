@@ -1,4 +1,4 @@
-# Developer Scripts for Gemma4ML
+# Developer Scripts for News Decoder
 
 These scripts help you manage the 1.2GB Gemma model weights during development.
 

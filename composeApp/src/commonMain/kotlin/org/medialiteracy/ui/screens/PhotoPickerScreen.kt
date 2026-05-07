@@ -1,4 +1,5 @@
 package org.medialiteracy.ui.screens
+import org.medialiteracy.ui.components.AppBarTitle
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -43,7 +44,7 @@ class PhotoPickerScreen : Screen {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Scan Newspaper", fontWeight = FontWeight.Bold) },
+                    title = { AppBarTitle("Scan Newspaper") },
                     navigationIcon = {
                         IconButton(onClick = { navigator.pop() }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")

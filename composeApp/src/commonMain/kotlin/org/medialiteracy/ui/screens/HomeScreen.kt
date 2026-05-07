@@ -11,8 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.material3.AlertDialog
-import androidx.compose.foundation.LocalIndication
+import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +31,8 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
+import org.medialiteracy.ui.components.AppBarTitle
+
 class HomeScreen : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
@@ -44,22 +45,19 @@ class HomeScreen : Screen {
 
         Scaffold(
             topBar = {
-                CenterAlignedTopAppBar(
-                    title = {
-                        Text(
-                            "News Decoder",
-                            color = Color(0xFF3F51B5),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 24.sp
+                // Simplified TopAppBar with shadow but NO scroll animation/translation
+                Surface(
+                    shadowElevation = 8.dp,
+                    tonalElevation = 0.dp,
+                    color = Color.White
+                ) {
+                    CenterAlignedTopAppBar(
+                        title = { AppBarTitle("News Decoder") },
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                            containerColor = Color.White
                         )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = {}) { Icon(Icons.Default.Menu, "Menu") }
-                    },
-                    actions = {
-                        IconButton(onClick = {}) { Icon(Icons.Default.Search, "Search") }
-                    }
-                )
+                    )
+                }
             }
         ) { padding ->
             LazyColumn(
@@ -70,7 +68,7 @@ class HomeScreen : Screen {
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 item {
-                    Column(modifier = Modifier.padding(vertical = 12.dp)) {
+                    Column(modifier = Modifier.padding(top = 24.dp, bottom = 12.dp)) {
                         Text(
                             "Deconstruct news logic and argument structure.",
                             style = MaterialTheme.typography.headlineLarge,
@@ -89,13 +87,12 @@ class HomeScreen : Screen {
 
                 item {
                     InputCard(
-                        title = "Paste Text / URL",
+                        title = "Paste Text",
                         description = "Quickly analyze articles, blog posts, or copied text fragments.",
                         icon = Icons.AutoMirrored.Filled.Assignment,
                         containerColor = Color(0xFF3F51B5),
                         onClick = { 
-                            val rootNavigator = navigator.parent ?: navigator
-                            rootNavigator.push(PasteInputScreen()) 
+                            navigator.push(PasteInputScreen()) 
                         }
                     )
                 }
@@ -105,10 +102,9 @@ class HomeScreen : Screen {
                         title = "Scan Newspaper",
                         description = "Use your camera to extract text from physical media.",
                         icon = Icons.Default.CropFree,
-                        containerColor = Color(0xFF00796B), // Slightly darker teal
+                        containerColor = Color(0xFF00796B),
                         onClick = { 
-                            val rootNavigator = navigator.parent ?: navigator
-                            rootNavigator.push(PhotoPickerScreen()) 
+                            navigator.push(PhotoPickerScreen()) 
                         }
                     )
                 }
@@ -118,10 +114,9 @@ class HomeScreen : Screen {
                         title = "Record Audio",
                         description = "Transcribe and analyze live speeches or broadcasts.",
                         icon = Icons.Default.Mic,
-                        containerColor = Color(0xFFC62828), // Crimson
+                        containerColor = Color(0xFFC62828),
                         onClick = { 
-                            val rootNavigator = navigator.parent ?: navigator
-                            rootNavigator.push(AudioPickerScreen()) 
+                            navigator.push(AudioPickerScreen()) 
                         }
                     )
                 }
@@ -152,8 +147,7 @@ class HomeScreen : Screen {
                             analysis = analysis,
                             onClick = {
                                 orchestrator.reset()
-                                val rootNavigator = navigator.parent ?: navigator
-                                rootNavigator.push(AnalysisScreen(
+                                navigator.push(AnalysisScreen(
                                     inputText = analysis.originalArticleText,
                                     cachedResult = analysis.analysisResult,
                                     analysisId = analysis.id
@@ -182,26 +176,36 @@ class HomeScreen : Screen {
             }
 
             articleToDelete?.let { analysis ->
-                AlertDialog(
-                    onDismissRequest = { articleToDelete = null },
-                    title = { Text("Delete Analysis") },
-                    text = { Text("Are you sure you want to delete this analysis? This action cannot be undone.") },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                screenModel.deleteAnalysis(analysis.id)
-                                articleToDelete = null
+                Dialog(onDismissRequest = { articleToDelete = null }) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(24.dp)) {
+                            Text("Delete Analysis", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("Are you sure you want to delete this analysis? This action cannot be undone.")
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                TextButton(onClick = { articleToDelete = null }) {
+                                    Text("Cancel")
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                TextButton(
+                                    onClick = {
+                                        screenModel.deleteAnalysis(analysis.id)
+                                        articleToDelete = null
+                                    }
+                                ) {
+                                    Text("Delete", color = Color.Red)
+                                }
                             }
-                        ) {
-                            Text("Delete", color = Color.Red)
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { articleToDelete = null }) {
-                            Text("Cancel")
                         }
                     }
-                )
+                }
             }
         }
     }
@@ -249,7 +253,6 @@ fun RecentAnalysisCard(
     onDelete: () -> Unit
 ) {
     val result = analysis.analysisResult
-    // ... timeStr calculation ...
     val timeStr = remember(analysis.timestamp) {
         try {
             val instant = Instant.fromEpochMilliseconds(analysis.timestamp)

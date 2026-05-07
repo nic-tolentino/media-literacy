@@ -1,0 +1,404 @@
+{
+  "resources": [
+    {
+      "id": "sift",
+      "title": "SIFT Method (The Four Moves)",
+      "category": "Verification Tactics",
+      "description": "Stop, Investigate the source, Find better coverage, Trace claims back to original context. Created by Mike Caulfield.",
+      "url": "https://hapgood.us/2019/06/19/sift-the-four-moves/",
+      "author": "Mike Caulfield"
+    },
+    {
+      "id": "lateral_reading",
+      "title": "Lateral Reading",
+      "category": "Verification Tactics",
+      "description": "The habit of leaving a site to see what others say about it. Developed by the Digital Inquiry Group (SHEG).",
+      "url": "https://cor.stanford.edu/",
+      "author": "Digital Inquiry Group"
+    },
+    {
+      "id": "fact_checking_checklist",
+      "title": "Fact-Checking Checklist",
+      "category": "Verification Tactics",
+      "description": "Distinguishing news from other information types like misinformation and disinformation.",
+      "url": "https://newslit.org/educators/resources/misinformation-infographic/",
+      "author": "News Literacy Project"
+    },
+    {
+      "id": "sandwich_method",
+      "title": "The Sandwich Method",
+      "category": "Analytical Frameworks",
+      "description": "A technique for integrating and evaluating sources: Context -> Evidence -> Connection.",
+      "url": "https://writingcenter.unc.edu/tips-and-tools/evidence/",
+      "author": "University of North Carolina"
+    },
+    {
+      "id": "toulmin_model",
+      "title": "Toulmin Model of Argumentation",
+      "category": "Analytical Frameworks",
+      "description": "Decomposing arguments into Claim, Data, Warrant, Backing, Qualifier, and Rebuttal.",
+      "url": "https://owl.purdue.edu/owl/general_writing/academic_writing/historical_perspectives_on_argumentation/toulmin_argument.html",
+      "author": "Purdue OWL"
+    },
+    {
+      "id": "steel_manning",
+      "title": "Steel-manning",
+      "category": "Analytical Frameworks",
+      "description": "Constructing the strongest possible version of an opponent's argument to engage with the best case.",
+      "url": "https://www.lesswrong.com/tag/steelmanning",
+      "author": "LessWrong"
+    },
+    {
+      "id": "lcm_model",
+      "title": "Linguistic Category Model (LCM)",
+      "category": "Analytical Frameworks",
+      "description": "Measuring linguistic abstraction as a proxy for cognitive bias and epistemological distance.",
+      "url": "https://www.semanticscholar.org/paper/The-linguistic-category-model%2C-its-bases%2C-and-range-Semin-Fiedler/320b9c9f0e1c2e3914c688863f695999710f666b",
+      "author": "Semin & Fiedler"
+    },
+    {
+      "id": "rhetoric_aristotle",
+      "title": "Rhetoric vs. Valid Argument",
+      "category": "Analytical Frameworks",
+      "description": "Classical definitions of persuasion versus structural logical validity.",
+      "url": "https://plato.stanford.edu/entries/aristotle-rhetoric/",
+      "author": "Stanford Encyclopedia of Philosophy"
+    },
+    {
+      "id": "aid_lf_methodology",
+      "title": "The AID-LF Methodology",
+      "category": "Logical Fallacies",
+      "description": "Hybrid Intelligence for Logical Fallacy Detection in natural language.",
+      "url": "https://aclanthology.org/2025.hcinlp-1.16.pdf",
+      "author": "ACL Anthology"
+    },
+    {
+      "id": "system_1_2",
+      "title": "System 1 vs. System 2 Thinking",
+      "category": "Cognitive Biases",
+      "description": "Understanding intuitive (fast) vs. deliberate (slow) cognitive processing.",
+      "url": "https://fs.blog/mental-models/",
+      "author": "Farnam Street"
+    },
+    {
+      "id": "framing_bias",
+      "title": "Framing Bias",
+      "category": "Linguistic Analysis",
+      "description": "How the presentation of information influences decision-making and perception.",
+      "url": "https://www.frameworksinstitute.org/methodology/strategic-frame-analysis/",
+      "author": "FrameWorks Institute"
+    },
+    {
+      "id": "euphemism_dysphemism",
+      "title": "Euphemism & Dysphemism",
+      "category": "Linguistic Analysis",
+      "description": "The use of positive or negative substitutes to influence emotional reception.",
+      "url": "https://www.thoughtco.com/what-is-dysphemism-1690500",
+      "author": "ThoughtCo"
+    },
+    {
+      "id": "invid_verification",
+      "title": "InVID & WeVerify",
+      "category": "Deepfakes & Synthetic Media",
+      "description": "A comprehensive verification plugin for digital images and video content.",
+      "url": "https://www.invid-project.eu/tools-and-services/invid-verification-plugin/",
+      "author": "InVID Project"
+    },
+    {
+      "id": "c2pa_standards",
+      "title": "Provenance Standards (C2PA)",
+      "category": "Deepfakes & Synthetic Media",
+      "description": "Industry standards for content provenance and authenticity.",
+      "url": "https://c2pa.org/",
+      "author": "C2PA"
+    },
+    {
+      "id": "ai_hallucinations",
+      "title": "LLM Hallucinations",
+      "category": "AI & Algorithmic Literacy",
+      "description": "Understanding why AI models generate factually incorrect but confident content.",
+      "url": "https://www.ibm.com/topics/ai-hallucinations",
+      "author": "IBM"
+    },
+    {
+      "id": "recommendation_algorithms",
+      "title": "Recommendation Algorithms",
+      "category": "AI & Algorithmic Literacy",
+      "description": "How AI curators influence what information we see and believe.",
+      "url": "https://foundation.mozilla.org/en/campaigns/youtube-regrets/",
+      "author": "Mozilla Foundation"
+    },
+    {
+      "id": "read_scientific_study",
+      "title": "How to Read a Scientific Study",
+      "category": "Science Communication",
+      "description": "A guide to navigating technical research papers and health claims.",
+      "url": "https://www.statnews.com/2016/01/05/how-to-read-a-scientific-study/",
+      "author": "STAT News"
+    },
+    {
+      "id": "peer_review",
+      "title": "Peer Review vs. Preprints",
+      "category": "Science Communication",
+      "description": "Understanding the verification process in scientific publishing.",
+      "url": "https://www.bmj.com/about-bmj/resources-authors/peer-review-process",
+      "author": "The BMJ"
+    },
+    {
+      "id": "chart_crimes",
+      "title": "Chart Crimes",
+      "category": "Data & Statistical Literacy",
+      "description": "Identifying truncated axes, dual axes, and cherry-picking in visualizations.",
+      "url": "https://callingbullshit.org/tools/tools_misleading_axes.html",
+      "author": "Calling Bullshit"
+    },
+    {
+      "id": "base_rate_fallacy",
+      "title": "Base Rate Fallacy",
+      "category": "Data & Statistical Literacy",
+      "description": "The error of ignoring general information in favor of specific details.",
+      "url": "https://yourbias.is/the-base-rate-fallacy",
+      "author": "School of Thought"
+    },
+    {
+      "id": "media_ownership",
+      "title": "Media Ownership",
+      "category": "Information Ecosystems",
+      "description": "Tracking who owns and controls major news organizations.",
+      "url": "https://www.freepress.net/issues/media-control-journalism/media-consolidation/who-owns-media",
+      "author": "Free Press"
+    },
+    {
+      "id": "cib_behavior",
+      "title": "Coordinated Inauthentic Behavior",
+      "category": "Information Ecosystems",
+      "description": "Understanding how networks of accounts work together to manipulate public opinion.",
+      "url": "https://about.fb.com/news/2019/10/coordinated-inauthentic-behavior/",
+      "author": "Meta Newsroom"
+    },
+    {
+      "id": "astroturfing",
+      "title": "Astroturfing",
+      "category": "Information Ecosystems",
+      "description": "Artificial grassroots movements designed to mask the real sponsors.",
+      "url": "https://www.theguardian.com/commentisfree/2012/feb/08/insidious-rise-of-astroturfing",
+      "author": "The Guardian"
+    },
+    {
+      "id": "clickbait_economics",
+      "title": "Clickbait Economics",
+      "category": "Economic Incentives",
+      "description": "How the ad-driven model incentivizes sensationalism over accuracy.",
+      "url": "https://www.niemanlab.org/tag/clickbait/",
+      "author": "Nieman Lab"
+    },
+    {
+      "id": "propaganda_7_devices",
+      "title": "The 7 Propaganda Devices",
+      "category": "Propaganda Techniques",
+      "description": "Classic methods of mass manipulation identified by the IPA.",
+      "url": "https://www.uvm.edu/~jleonard/AGRI183/propganda.html",
+      "author": "University of Vermont"
+    },
+    {
+      "id": "inoculation_theory",
+      "title": "Inoculation Theory (Prebunking)",
+      "category": "Psychological Resilience",
+      "description": "Building cognitive resistance by pre-exposing users to weakened manipulation.",
+      "url": "https://www.cam.ac.uk/stories/inoculation-misinformation",
+      "author": "University of Cambridge"
+    },
+    {
+      "id": "debunking_handbook",
+      "title": "The Debunking Handbook",
+      "category": "Psychological Resilience",
+      "description": "Strategies for correcting misinformation effectively.",
+      "url": "https://skepticalscience.com/The-Debunking-Handbook-2020.html",
+      "author": "Skeptical Science"
+    },
+    {
+      "id": "thinking_fast_slow",
+      "title": "Thinking, Fast and Slow",
+      "category": "Books",
+      "description": "The seminal work by Daniel Kahneman on the two systems of thought.",
+      "url": "https://www.goodreads.com/book/show/11468377-thinking-fast-and-slow",
+      "author": "Daniel Kahneman"
+    },
+    {
+      "id": "demon_haunted_world",
+      "title": "The Demon-Haunted World",
+      "category": "Books",
+      "description": "Carl Sagan's classic on science as a candle in the dark of superstition.",
+      "url": "https://www.goodreads.com/book/show/17349.The_Demon_Haunted_World",
+      "author": "Carl Sagan"
+    },
+    {
+      "id": "calling_bullshit",
+      "title": "Calling Bullshit",
+      "category": "Books",
+      "description": "The art of skepticism in a data-driven world.",
+      "url": "https://www.goodreads.com/book/show/48889983-calling-bullshit?ref=nav_sb_ss_1_16",
+      "author": "Bergstrom & West"
+    },
+    {
+      "id": "factfulness",
+      "title": "Factfulness",
+      "category": "Books",
+      "description": "Ten reasons we're wrong about the world and why things are better than you think.",
+      "url": "https://www.goodreads.com/book/show/34890015-factfulness?ref=nav_sb_ss_1_11",
+      "author": "Hans Rosling"
+    },
+    {
+      "id": "art_thinking_clearly",
+      "title": "The Art of Thinking Clearly",
+      "category": "Books",
+      "description": "A comprehensive guide to 99 common thinking errors.",
+      "url": "https://www.goodreads.com/book/show/16248196-the-art-of-thinking-clearly",
+      "author": "Rolf Dobelli"
+    },
+    {
+      "id": "checkology",
+      "title": "Checkology",
+      "category": "Courses",
+      "description": "Interactive lessons on news literacy for students and educators.",
+      "url": "https://checkology.org/",
+      "author": "News Literacy Project"
+    },
+    {
+      "id": "crash_course_media",
+      "title": "Crash Course: Media Literacy",
+      "category": "Courses",
+      "description": "A YouTube series exploring the mechanics and impact of media.",
+      "url": "https://www.youtube.com/playlist?list=PL8dPuuaLjXtM6jSpzb4gMNsx94zSsz1LP",
+      "author": "Crash Course"
+    },
+    {
+      "id": "snopes",
+      "title": "Snopes",
+      "category": "Fact-Checking",
+      "description": "The definitive reference for urban legends and rumors.",
+      "url": "https://www.snopes.com/",
+      "author": "Snopes Media Group"
+    },
+    {
+      "id": "politifact",
+      "title": "PolitiFact",
+      "category": "Fact-Checking",
+      "description": "Truth-O-Meter ratings for political claims and statements.",
+      "url": "https://www.politifact.com/",
+      "author": "Poynter Institute"
+    },
+    {
+      "id": "factcheck_org",
+      "title": "FactCheck.org",
+      "category": "Fact-Checking",
+      "description": "Monitoring the factual accuracy of major U.S. political players.",
+      "url": "https://www.factcheck.org/",
+      "author": "Annenberg Public Policy Center"
+    },
+    {
+      "id": "reuters_fact_check",
+      "title": "Reuters Fact Check",
+      "category": "Fact-Checking",
+      "description": "Global wire service dedicated to debunking digital misinformation.",
+      "url": "https://www.reuters.com/fact-check",
+      "author": "Reuters"
+    },
+    {
+      "id": "full_fact",
+      "title": "Full Fact",
+      "category": "Fact-Checking",
+      "description": "Independent fact-checking charity based in the UK.",
+      "url": "https://fullfact.org/",
+      "author": "Full Fact"
+    },
+    {
+      "id": "media_bias_chart",
+      "title": "Ad Fontes Media Bias Chart",
+      "category": "Tools",
+      "description": "Visualizing sources by political lean and reliability.",
+      "url": "https://adfontesmedia.com/",
+      "author": "Ad Fontes Media"
+    },
+    {
+      "id": "ground_news",
+      "title": "Ground News",
+      "category": "Tools",
+      "description": "News comparison platform highlighting bias and blindspots.",
+      "url": "https://ground.news/",
+      "author": "Ground News"
+    },
+    {
+      "id": "you_are_not_so_smart",
+      "title": "You Are Not So Smart",
+      "category": "Podcasts",
+      "description": "Exploring self-delusion and the psychology of our own biases.",
+      "url": "https://youarenotsosmart.com/",
+      "author": "David McRaney"
+    },
+    {
+      "id": "skeptoid",
+      "title": "Skeptoid",
+      "category": "Podcasts",
+      "description": "Weekly critical analysis of urban legends and fringe science.",
+      "url": "https://skeptoid.com/",
+      "author": "Brian Dunning"
+    },
+    {
+      "id": "maintenance_phase",
+      "title": "Maintenance Phase",
+      "category": "Podcasts",
+      "description": "Debunking the junk science behind health trends.",
+      "url": "https://www.maintenancephase.com/",
+      "author": "Aubrey Gordon & Michael Hobbes"
+    },
+    {
+      "id": "bad_news_game",
+      "title": "Bad News Game",
+      "category": "Games",
+      "description": "Play as a fake news tycoon to learn manipulation tactics.",
+      "url": "https://www.getbadnews.com/",
+      "author": "DROG / Cambridge"
+    },
+    {
+      "id": "go_viral_game",
+      "title": "Go Viral!",
+      "category": "Games",
+      "description": "A game specifically focused on COVID-19 misinformation inoculation.",
+      "url": "https://www.goviralgame.com/",
+      "author": "University of Cambridge"
+    },
+    {
+      "id": "harmony_square",
+      "title": "Harmony Square",
+      "category": "Games",
+      "description": "A game about misinformation used to sow political discord.",
+      "url": "https://harmonysquare.game/",
+      "author": "DHS / CISA"
+    },
+    {
+      "id": "cranky_uncle",
+      "title": "Cranky Uncle",
+      "category": "Games",
+      "description": "Using cartoons to teach the logic of climate denial.",
+      "url": "https://crankyuncle.com/",
+      "author": "John Cook"
+    },
+    {
+      "id": "namle",
+      "title": "NAMLE",
+      "category": "Communities",
+      "description": "National Association for Media Literacy Education.",
+      "url": "https://namle.net/",
+      "author": "NAMLE"
+    },
+    {
+      "id": "media_literacy_now",
+      "title": "Media Literacy Now",
+      "category": "Communities",
+      "description": "Advocacy for media literacy education policy.",
+      "url": "https://medialiteracynow.org/",
+      "author": "Media Literacy Now"
+    }
+  ]
+}

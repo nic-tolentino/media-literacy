@@ -8,6 +8,8 @@
 This project is a submission for the [Gemma 4 Kaggle competition: "Gemma 4 Good"](https://www.kaggle.com/competitions/gemma-4-good-hackathon).
 
 ## 🎯 Objective
+To empower people to make more informed decisions based on the information that they consume.
+
 To provide a privacy-first, secure environment where users can evaluate the news critically. By leveraging local inference and structured analytical prompts, the engine exposes the internal "logic" behind media narratives.
 
 Instead of acting as an infallible arbiter of truth, the app acts as a local logic tutor. It does not judge the *facts*; it evaluates the *structural logic* and *evidence quality* of the arguments presented.

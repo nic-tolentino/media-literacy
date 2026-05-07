@@ -1,6 +1,6 @@
-# Sample Test Articles for Gemma4ML Analyser
+# Sample Test Articles for News Decoder Analyser
 
-These articles are **fictional, intentionally flawed test documents** designed to exercise the Gemma4ML analysis engine. Each is written to contain a variety of logical fallacies, emotional language, unsupported claims, and rhetorical manipulation techniques.
+These articles are **fictional, intentionally flawed test documents** designed to exercise the News Decoder analysis engine. Each is written to contain a variety of logical fallacies, emotional language, unsupported claims, and rhetorical manipulation techniques.
 
 A reference list of intended fallacies is included under each article for verifying analyser output.
 
@@ -114,4 +114,4 @@ If you are not angry, you are not paying attention. And if you are not paying at
 
 ---
 
-*End of sample articles. All content is fictional and created solely for testing the Gemma4ML analysis engine.*
+*End of sample articles. All content is fictional and created solely for testing the News Decoder analysis engine.*
