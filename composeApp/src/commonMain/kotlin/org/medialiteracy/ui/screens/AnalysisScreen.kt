@@ -2,6 +2,7 @@ package org.medialiteracy.ui.screens
 
 import org.medialiteracy.ui.components.AppBarTitle
 import org.medialiteracy.ui.analyticalColors
+import org.medialiteracy.domain.ServiceRegistry
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -390,16 +391,30 @@ fun AnalysisSectionCard(
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                    if (subtitle != null) {
-                        Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        icon, 
+                        null, 
+                        tint = MaterialTheme.colorScheme.primary, 
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        if (subtitle != null) {
+                            Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
                 if (!isLoading) {
-                    IconButton(onClick = onIconClick, modifier = Modifier.size(24.dp)) {
-                        Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    IconButton(onClick = onIconClick, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Chat, 
+                            null, 
+                            tint = MaterialTheme.analyticalColors.brightBlue, 
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
             }
@@ -570,6 +585,9 @@ fun PatternCard(
     onChatClick: () -> Unit,
     onInfoClick: () -> Unit
 ) {
+    val curriculumRepo = ServiceRegistry.curriculumRepository
+    val isSupported = curriculumRepo.isTacticSupported(type)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
@@ -585,11 +603,23 @@ fun PatternCard(
                 Text(evidence, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Row {
-                IconButton(onClick = onInfoClick, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Default.Info, "Glossary", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                if (isSupported) {
+                    IconButton(onClick = onInfoClick, modifier = Modifier.size(28.dp)) {
+                        Icon(
+                            Icons.Default.School, 
+                            "Glossary", 
+                            tint = MaterialTheme.analyticalColors.brightTeal, 
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
                 IconButton(onClick = onChatClick, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.Chat, "Chat", tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(18.dp))
+                    Icon(
+                        Icons.AutoMirrored.Filled.Chat, 
+                        "Chat", 
+                        tint = MaterialTheme.analyticalColors.brightBlue, 
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
         }

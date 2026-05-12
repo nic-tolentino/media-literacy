@@ -8,12 +8,13 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.medialiteracy.domain.Curriculum
 import org.medialiteracy.domain.ResourcePortal
+import org.medialiteracy.domain.ServiceRegistry
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import medialiteracy.composeapp.generated.resources.Res
 
 class LearningScreenModel : ScreenModel {
-    private val _curriculum = MutableStateFlow<Curriculum?>(null)
-    val curriculum: StateFlow<Curriculum?> = _curriculum
+    private val repository = ServiceRegistry.curriculumRepository
+    val curriculum: StateFlow<Curriculum?> = repository.curriculum
 
     private val _resourcePortal = MutableStateFlow<ResourcePortal?>(null)
     val resourcePortal: StateFlow<ResourcePortal?> = _resourcePortal
@@ -33,10 +34,8 @@ class LearningScreenModel : ScreenModel {
             try {
                 _isLoading.value = true
                 
-                // Load Curriculum
-                val curriculumBytes = Res.readBytes("files/curriculum.json")
-                val curriculumString = curriculumBytes.decodeToString()
-                _curriculum.value = json.decodeFromString<Curriculum>(curriculumString)
+                // Ensure curriculum is loaded in repo
+                repository.loadCurriculum()
 
                 // Load Resource Portal
                 val resourceBytes = Res.readBytes("files/media_literacy_resources.json")

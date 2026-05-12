@@ -23,14 +23,16 @@ class GemmaApp : Application() {
         initModelRepository(this)
         val modelRepository = PlatformModelRepository()
         val inferenceService = AndroidInferenceService(engine, modelRepository, appScope, this)
+        val curriculumRepository = CurriculumRepository()
         val analysisCoordinator = AnalysisCoordinator(inferenceService, repository, appScope)
-        ServiceRegistry.init(inferenceService, analysisCoordinator)
+        ServiceRegistry.init(inferenceService, analysisCoordinator, curriculumRepository)
         
         DeviceCapabilityChecker.init(this)
         
         // Only initialize engine if a model is already downloaded
         // This avoids noisy error logs and unnecessary resource allocation for new users
         appScope.launch {
+            curriculumRepository.loadCurriculum()
             if (ServiceRegistry.inferenceService.modelRepository.installedModelPath() != null) {
                 inferenceService.resetEngine()
             }

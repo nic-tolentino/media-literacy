@@ -524,7 +524,12 @@ class TacticsLibraryScreen(private val initialQuery: String = "") : Screen {
                 ) {
                     curriculum?.categories?.forEach { category ->
                         val filtered = category.tactics.filter { 
-                            it.title.contains(searchQuery, true) || it.definition.contains(searchQuery, true)
+                            val normalizedTitle = it.title.lowercase().replace(Regex("[^a-z0-9]"), "")
+                            val normalizedQuery = searchQuery.lowercase().replace(Regex("[^a-z0-9]"), "")
+                            
+                            normalizedTitle.contains(normalizedQuery) || 
+                            normalizedQuery.contains(normalizedTitle) ||
+                            it.definition.contains(searchQuery, true)
                         }
                         if (filtered.isNotEmpty()) {
                             item(key = "cat_lib_header_${category.id}") { 

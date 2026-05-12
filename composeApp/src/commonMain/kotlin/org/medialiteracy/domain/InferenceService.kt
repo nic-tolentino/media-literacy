@@ -90,8 +90,12 @@ object ServiceRegistry {
     private var _analysisCoordinator: AnalysisCoordinator? = null
     val analysisCoordinator: AnalysisCoordinator get() = _analysisCoordinator ?: throw Exception("AnalysisCoordinator not initialized")
 
-    fun init(service: InferenceService, coordinator: AnalysisCoordinator) {
+    private var _curriculumRepository: CurriculumRepository? = null
+    val curriculumRepository: CurriculumRepository get() = _curriculumRepository ?: throw Exception("CurriculumRepository not initialized")
+
+    fun init(service: InferenceService, coordinator: AnalysisCoordinator, curriculum: CurriculumRepository) {
         _inferenceService = service
         _analysisCoordinator = coordinator
+        _curriculumRepository = curriculum
     }
 }
