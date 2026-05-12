@@ -67,6 +67,12 @@ class GemmaOrchestrator : ScreenModel {
         coordinator.reset()
     }
 
+    fun resetEngine() {
+        screenModelScope.launch {
+            inferenceService.execute(InferenceCommand.Reset).collect()
+        }
+    }
+
     fun downloadModel() {
         // Mock download if needed
     }

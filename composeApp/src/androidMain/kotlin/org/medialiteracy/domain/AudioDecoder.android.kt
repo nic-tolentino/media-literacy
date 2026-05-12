@@ -164,15 +164,15 @@ object AudioDecoder {
         val byteRate = TARGET_SAMPLE_RATE * 2 // 16000 * 2 (16-bit mono)
 
         // RIFF header
-        header[0] = 'R'.toByte(); header[1] = 'I'.toByte(); header[2] = 'F'.toByte(); header[3] = 'F'.toByte()
+        header[0] = 'R'.code.toByte(); header[1] = 'I'.code.toByte(); header[2] = 'F'.code.toByte(); header[3] = 'F'.code.toByte()
         header[4] = (totalSize and 0xff).toByte()
         header[5] = (totalSize shr 8 and 0xff).toByte()
         header[6] = (totalSize shr 16 and 0xff).toByte()
         header[7] = (totalSize shr 24 and 0xff).toByte()
-        header[8] = 'W'.toByte(); header[9] = 'A'.toByte(); header[10] = 'V'.toByte(); header[11] = 'E'.toByte()
+        header[8] = 'W'.code.toByte(); header[9] = 'A'.code.toByte(); header[10] = 'V'.code.toByte(); header[11] = 'E'.code.toByte()
 
         // fmt chunk
-        header[12] = 'f'.toByte(); header[13] = 'm'.toByte(); header[14] = 't'.toByte(); header[15] = ' '.toByte()
+        header[12] = 'f'.code.toByte(); header[13] = 'm'.code.toByte(); header[14] = 't'.code.toByte(); header[15] = ' '.code.toByte()
         header[16] = 16; header[17] = 0; header[18] = 0; header[19] = 0 // Subchunk1Size
         header[20] = 1; header[21] = 0 // AudioFormat (PCM)
         header[22] = 1; header[23] = 0 // NumChannels (Mono)
@@ -188,7 +188,7 @@ object AudioDecoder {
         header[34] = 16; header[35] = 0 // BitsPerSample
         
         // data chunk
-        header[36] = 'd'.toByte(); header[37] = 'a'.toByte(); header[38] = 't'.toByte(); header[39] = 'a'.toByte()
+        header[36] = 'd'.code.toByte(); header[37] = 'a'.code.toByte(); header[38] = 't'.code.toByte(); header[39] = 'a'.code.toByte()
         header[40] = (dataSize and 0xff).toByte()
         header[41] = (dataSize shr 8 and 0xff).toByte()
         header[42] = (dataSize shr 16 and 0xff).toByte()

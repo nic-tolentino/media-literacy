@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,6 +23,7 @@ import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import org.medialiteracy.domain.EngineInternalState
 import org.medialiteracy.domain.GemmaOrchestrator
 import org.medialiteracy.domain.InferenceState
 import org.medialiteracy.ui.tabs.TabHost
@@ -40,7 +42,9 @@ class OnboardingScreen : Screen {
             orchestrator.downloadModel()
         }
 
-        Surface(modifier = Modifier.fillMaxSize(), color = Color.White) {
+        val engineState by orchestrator.engineState.collectAsState()
+
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(
                 modifier = Modifier.fillMaxSize().padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -59,7 +63,8 @@ class OnboardingScreen : Screen {
                     "Welcome to News Decoder",
                     style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -68,7 +73,7 @@ class OnboardingScreen : Screen {
                     "Establishing your private, on-device logic engine for safe media analysis.",
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 
                 Spacer(modifier = Modifier.height(48.dp))
@@ -76,20 +81,22 @@ class OnboardingScreen : Screen {
                 // Status Box
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F9FA)),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column(modifier = Modifier.padding(24.dp)) {
-                        when (val s = state) {
-                            is InferenceState.DownloadingModel -> {
+                        when (engineState) {
+                            EngineInternalState.Initializing -> {
                                 StatusItem(
                                     icon = Icons.Default.CloudDownload,
-                                    title = "Retrieving Model Weights",
-                                    description = "Gemma 4-E2B (1.2GB)",
-                                    progress = s.progress
+                                    title = "Initializing Engine",
+                                    description = "Loading Gemma weights (1.2GB)",
+                                    progress = 0.5f // Indeterminate or mock
                                 )
                             }
-                            is InferenceState.Idle -> {
+                            EngineInternalState.Idle -> {
                                 StatusItem(
                                     icon = Icons.Default.AutoAwesome,
                                     title = "AI Ready",
@@ -101,8 +108,32 @@ class OnboardingScreen : Screen {
                                     navigator.replaceAll(TabHost())
                                 }
                             }
+                            EngineInternalState.Error -> {
+                                StatusItem(
+                                    icon = Icons.Default.Security,
+                                    title = "Initialization Failed",
+                                    description = "Model not found or corrupted. Please check your storage.",
+                                    progress = 0f,
+                                    isError = true
+                                )
+                                
+                                Spacer(modifier = Modifier.height(16.dp))
+                                
+                                Button(
+                                    onClick = { orchestrator.resetEngine() },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                ) {
+                                    Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Retry Initialization")
+                                }
+                            }
                             else -> {
-                                Text("Initializing system...")
+                                Text("System status: $engineState", color = MaterialTheme.colorScheme.onSurface)
                                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                             }
                         }
@@ -124,26 +155,32 @@ class OnboardingScreen : Screen {
 }
 
 @Composable
-fun StatusItem(icon: ImageVector, title: String, description: String, progress: Float) {
+fun StatusItem(icon: ImageVector, title: String, description: String, progress: Float, isError: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, tint = Color(0xFF3F51B5), modifier = Modifier.size(24.dp))
+        Icon(
+            icon, 
+            null, 
+            tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, 
+            modifier = Modifier.size(24.dp)
+        )
         Spacer(modifier = Modifier.width(12.dp))
         Column {
-            Text(title, fontWeight = FontWeight.Bold)
-            Text(description, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Text(title, fontWeight = FontWeight.Bold, color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+            Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
     Spacer(modifier = Modifier.height(16.dp))
     LinearProgressIndicator(
         progress = progress, 
         modifier = Modifier.fillMaxWidth(),
-        color = Color(0xFF3F51B5),
-        trackColor = Color.LightGray.copy(alpha = 0.3f)
+        color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+        trackColor = MaterialTheme.colorScheme.outlineVariant
     )
     Text(
-        "${(progress * 100).toInt()}%", 
+        if (isError) "ERROR" else "${(progress * 100).toInt()}%", 
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
         textAlign = TextAlign.End,
-        style = MaterialTheme.typography.labelSmall
+        style = MaterialTheme.typography.labelSmall,
+        color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
     )
 }

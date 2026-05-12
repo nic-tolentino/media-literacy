@@ -14,6 +14,8 @@ import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import org.medialiteracy.ui.LocalThemeIsDark
+import org.medialiteracy.ui.analyticalColors
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -33,14 +35,26 @@ import org.medialiteracy.domain.MediaResource
 import org.medialiteracy.domain.Tactic
 import org.medialiteracy.domain.TacticCategory
 
+import cafe.adriel.voyager.navigator.Navigator
 import org.medialiteracy.ui.components.AppBarTitle
+import org.medialiteracy.ui.LocalRootNavigator
 
 class LearningScreen : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
+        val rootNavigator = LocalRootNavigator.current ?: navigator
         val screenModel = rememberScreenModel { LearningScreenModel() }
+        val useDarkTheme = LocalThemeIsDark.current
+        
+        val blueColor = MaterialTheme.analyticalColors.blue
+        val tealColor = MaterialTheme.analyticalColors.teal
+        val redColor = MaterialTheme.analyticalColors.red
+        val purpleColor = MaterialTheme.analyticalColors.purple
+        
+        val actualRootNavigator = rootNavigator
+        
         val curriculum by screenModel.curriculum.collectAsState()
         val resourcePortal by screenModel.resourcePortal.collectAsState()
         val isLoading by screenModel.isLoading.collectAsState()
@@ -51,14 +65,14 @@ class LearningScreen : Screen {
         Scaffold(
             topBar = {
                 Surface(
-                    shadowElevation = 8.dp,
-                    tonalElevation = 0.dp,
-                    color = Color.White
+                    shadowElevation = MaterialTheme.analyticalColors.appBarElevation,
+                    tonalElevation = 2.dp,
+                    color = MaterialTheme.colorScheme.surface
                 ) {
                     CenterAlignedTopAppBar(
                         title = { AppBarTitle("Learning Hub") },
                         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                            containerColor = Color.White
+                            containerColor = Color.Transparent
                         )
                     )
                 }
@@ -68,7 +82,7 @@ class LearningScreen : Screen {
                 if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center),
-                        color = Color(0xFF3F51B5)
+                        color = MaterialTheme.colorScheme.primary
                     )
                 } else {
                     val resourcesByCategory = remember(resourcePortal) {
@@ -97,20 +111,27 @@ class LearningScreen : Screen {
                         
                         item(key = "fallacies_hero") {
                             val heroTactics = curriculum?.categories?.flatMap { it.tactics }?.take(5) ?: emptyList()
-                            HeroCarousel(heroTactics, color = Color(0xFF3F51B5)) { tactic ->
-                                navigator.push(TacticsLibraryScreen(tactic.title))
+                            HeroCarousel(heroTactics, color = blueColor) { tactic ->
+                                actualRootNavigator.push(TacticsLibraryScreen(tactic.title))
                             }
                         }
 
                         curriculum?.categories?.let { categories ->
                             items(categories, key = { "curriculum_cat_${it.id}" }) { category ->
+                                val (catColor, catIconColor) = if (category.id == "fallacies") {
+                                    blueColor to MaterialTheme.analyticalColors.brightBlue
+                                } else {
+                                    purpleColor to MaterialTheme.analyticalColors.brightPurple
+                                }
+                                
                                 CategoryCard(
                                     title = category.title,
                                     subtitle = "${category.tactics.size} entries",
                                     icon = if (category.id == "fallacies") Icons.Default.Gavel else Icons.Default.Psychology,
-                                    color = if (category.id == "fallacies") Color(0xFF5C6BC0) else Color(0xFF7E57C2)
+                                    color = catColor,
+                                    iconColor = catIconColor
                                 ) {
-                                    navigator.push(CategoryDetailScreen(category))
+                                    actualRootNavigator.push(CategoryDetailScreen(category))
                                 }
                             }
                         }
@@ -124,8 +145,8 @@ class LearningScreen : Screen {
                         item(key = "topics_hero") {
                             val topicResources = resourcesByCategory.filterKeys { it in topicCategories }
                                 .values.flatten().take(5)
-                            // Core Topics Hero cards shaded green
-                            HeroResourceCarousel(topicResources, containerColor = Color(0xFF00897B), textColor = Color.White)
+                            // Core Topics Hero cards - Unified Teal
+                            HeroResourceCarousel(topicResources, containerColor = tealColor, textColor = Color.White)
                         }
 
                         item(key = "topics_list_container") {
@@ -134,11 +155,12 @@ class LearningScreen : Screen {
                                 topicsToDisplay.take(3).forEach { (name, resources) ->
                                     CategoryCard(
                                         title = name,
-                                        subtitle = "${resources.size} resources",
+                                        subtitle = "${resources.size} entries",
                                         icon = getIconForCategory(name),
-                                        color = Color(0xFF00897B) // Already green
+                                        color = tealColor,
+                                        iconColor = MaterialTheme.analyticalColors.brightTeal
                                     ) {
-                                        navigator.push(ResourceCategoryScreen(name, resources))
+                                        actualRootNavigator.push(ResourceCategoryScreen(name, resources))
                                     }
                                 }
 
@@ -153,9 +175,10 @@ class LearningScreen : Screen {
                                                 title = name,
                                                 subtitle = "${resources.size} resources",
                                                 icon = getIconForCategory(name),
-                                                color = Color(0xFF00897B)
+                                                color = tealColor,
+                                                iconColor = MaterialTheme.analyticalColors.brightTeal
                                             ) {
-                                                navigator.push(ResourceCategoryScreen(name, resources))
+                                                actualRootNavigator.push(ResourceCategoryScreen(name, resources))
                                             }
                                         }
                                     }
@@ -180,8 +203,8 @@ class LearningScreen : Screen {
                         item(key = "portal_hero") {
                             val portalHero = resourcesByCategory.filterKeys { it in portalCategories }
                                 .values.flatten().shuffled().take(5)
-                            // Resource Portal Hero cards shaded red
-                            HeroResourceCarousel(portalHero, containerColor = Color(0xFFC62828), textColor = Color.White)
+                            // Resource Portal Hero cards - Darker Red for better contrast
+                            HeroResourceCarousel(portalHero, containerColor = redColor, textColor = Color.White)
                         }
 
                         item(key = "portal_list_container") {
@@ -192,9 +215,10 @@ class LearningScreen : Screen {
                                         title = name,
                                         subtitle = "${resources.size} entries",
                                         icon = getIconForCategory(name),
-                                        color = Color(0xFFC62828) // Shaded red
+                                        color = redColor,
+                                        iconColor = MaterialTheme.analyticalColors.brightRed
                                     ) {
-                                        navigator.push(ResourceCategoryScreen(name, resources))
+                                        actualRootNavigator.push(ResourceCategoryScreen(name, resources))
                                     }
                                 }
 
@@ -209,9 +233,10 @@ class LearningScreen : Screen {
                                                 title = name,
                                                 subtitle = "${resources.size} entries",
                                                 icon = getIconForCategory(name),
-                                                color = Color(0xFFC62828)
+                                                color = redColor,
+                                                iconColor = MaterialTheme.analyticalColors.brightRed
                                             ) {
-                                                navigator.push(ResourceCategoryScreen(name, resources))
+                                                actualRootNavigator.push(ResourceCategoryScreen(name, resources))
                                             }
                                         }
                                     }
@@ -243,7 +268,7 @@ fun ExpandButton(
     Box(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
         TextButton(
             onClick = onClick,
-            colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF3F51B5))
+            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -269,12 +294,12 @@ fun SectionPortalHeader(title: String, subtitle: String) {
             title,
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.ExtraBold,
-            color = Color.Black
+            color = MaterialTheme.colorScheme.onSurface
         )
         Text(
             subtitle,
             style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -364,7 +389,7 @@ fun HeroResourceCarousel(
                     Text(
                         resource.category.uppercase(),
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (textColor == Color.White) Color.White.copy(alpha = 0.8f) else Color(0xFF3F51B5),
+                        color = if (textColor == Color.White) Color.White.copy(alpha = 0.8f) else MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.ExtraBold
                     )
                 }
@@ -380,6 +405,7 @@ fun CategoryCard(
     subtitle: String,
     icon: ImageVector,
     color: Color,
+    iconColor: Color = color,
     onClick: () -> Unit
 ) {
     Card(
@@ -389,7 +415,9 @@ fun CategoryCard(
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .height(80.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F6F7))
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
+        )
     ) {
         Row(
             modifier = Modifier.padding(16.dp).fillMaxSize(),
@@ -399,10 +427,10 @@ fun CategoryCard(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(color.copy(alpha = 0.1f)),
+                    .background(iconColor.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, null, tint = color, modifier = Modifier.size(24.dp))
+                Icon(icon, null, tint = iconColor, modifier = Modifier.size(24.dp))
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -410,15 +438,15 @@ fun CategoryCard(
                     title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = Color.LightGray)
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.outlineVariant)
         }
     }
 }
@@ -460,14 +488,22 @@ class TacticsLibraryScreen(private val initialQuery: String = "") : Screen {
 
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = { AppBarTitle("Tactics Library") },
-                    navigationIcon = {
-                        IconButton(onClick = { navigator.pop() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color(0xFF1A237E))
-                        }
-                    }
-                )
+                val useDarkTheme = LocalThemeIsDark.current
+                Surface(
+                    shadowElevation = if (useDarkTheme) 0.dp else 16.dp,
+                    tonalElevation = 2.dp,
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    TopAppBar(
+                        title = { AppBarTitle("Tactics Library") },
+                        navigationIcon = {
+                            IconButton(onClick = { navigator.pop() }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.primary)
+                            }
+                        },
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
+                    )
+                }
             }
         ) { padding ->
             Column(modifier = Modifier.padding(padding)) {
@@ -478,7 +514,7 @@ class TacticsLibraryScreen(private val initialQuery: String = "") : Screen {
                     placeholder = { Text("Search tactics, fallacies...") },
                     leadingIcon = { Icon(Icons.Default.Search, null) },
                     shape = RoundedCornerShape(12.dp),
-                    colors = TextFieldDefaults.outlinedTextFieldColors(focusedBorderColor = Color(0xFF3F51B5))
+                    colors = TextFieldDefaults.outlinedTextFieldColors(focusedBorderColor = MaterialTheme.colorScheme.primary)
                 )
 
                 LazyColumn(
@@ -496,7 +532,7 @@ class TacticsLibraryScreen(private val initialQuery: String = "") : Screen {
                                     category.title.uppercase(), 
                                     style = MaterialTheme.typography.labelSmall, 
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.Gray,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                                 ) 
                             }
@@ -520,14 +556,22 @@ class CategoryDetailScreen(val category: TacticCategory) : Screen {
 
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = { AppBarTitle(category.title) },
-                    navigationIcon = {
-                        IconButton(onClick = { navigator.pop() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color(0xFF1A237E))
-                        }
-                    }
-                )
+                val useDarkTheme = LocalThemeIsDark.current
+                Surface(
+                    shadowElevation = if (useDarkTheme) 0.dp else 16.dp,
+                    tonalElevation = 2.dp,
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    CenterAlignedTopAppBar(
+                        title = { AppBarTitle(category.title) },
+                        navigationIcon = {
+                            IconButton(onClick = { navigator.pop() }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.primary)
+                            }
+                        },
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
+                    )
+                }
             }
         ) { padding ->
             Column(modifier = Modifier.padding(padding)) {
@@ -538,7 +582,7 @@ class CategoryDetailScreen(val category: TacticCategory) : Screen {
                     placeholder = { Text("Search ${category.title.lowercase()}...") },
                     leadingIcon = { Icon(Icons.Default.Search, null) },
                     shape = RoundedCornerShape(12.dp),
-                    colors = TextFieldDefaults.outlinedTextFieldColors(focusedBorderColor = Color(0xFF3F51B5))
+                    colors = TextFieldDefaults.outlinedTextFieldColors(focusedBorderColor = MaterialTheme.colorScheme.primary)
                 )
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -563,14 +607,22 @@ class ResourceCategoryScreen(val categoryName: String, val resources: List<Media
 
         Scaffold(
             topBar = {
-                CenterAlignedTopAppBar(
-                    title = { AppBarTitle(categoryName) },
-                    navigationIcon = {
-                        IconButton(onClick = { navigator.pop() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
-                        }
-                    }
-                )
+                val useDarkTheme = LocalThemeIsDark.current
+                Surface(
+                    shadowElevation = if (useDarkTheme) 0.dp else 16.dp,
+                    tonalElevation = 2.dp,
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    CenterAlignedTopAppBar(
+                        title = { AppBarTitle(categoryName) },
+                        navigationIcon = {
+                            IconButton(onClick = { navigator.pop() }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                            }
+                        },
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
+                    )
+                }
             }
         ) { padding ->
             Column(modifier = Modifier.padding(padding)) {
@@ -581,7 +633,7 @@ class ResourceCategoryScreen(val categoryName: String, val resources: List<Media
                     placeholder = { Text("Search in $categoryName...") },
                     leadingIcon = { Icon(Icons.Default.Search, null) },
                     shape = RoundedCornerShape(12.dp),
-                    colors = TextFieldDefaults.outlinedTextFieldColors(focusedBorderColor = Color(0xFF3F51B5))
+                    colors = TextFieldDefaults.outlinedTextFieldColors(focusedBorderColor = MaterialTheme.colorScheme.primary)
                 )
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -604,29 +656,29 @@ private fun TacticCardItem(tactic: Tactic) {
     Card(
         onClick = { expanded = !expanded },
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F6F7)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(tactic.title, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.Black)
-                Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null, tint = Color.Gray)
+                Text(tactic.title, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
+                Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             AnimatedVisibility(visible = expanded) {
                 Column {
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text(tactic.definition, style = MaterialTheme.typography.bodyMedium, color = Color(0xFF424242))
+                    Text(tactic.definition, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("CANONICAL EXAMPLE", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Color(0xFF3F51B5))
+                    Text("CANONICAL EXAMPLE", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 4.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFE8EAF6))
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
                             .padding(12.dp)
                     ) {
-                        Text(tactic.canonical_example, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, color = Color(0xFF1A237E))
+                        Text(tactic.canonical_example, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     }
                 }
             }
@@ -641,18 +693,18 @@ private fun ResourceCardItem(resource: MediaResource) {
     Card(
         onClick = { uriHandler.openUri(resource.url) },
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(resource.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
-                Text(resource.author, style = MaterialTheme.typography.labelSmall, color = Color(0xFF3F51B5), fontWeight = FontWeight.Bold)
+                Text(resource.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                Text(resource.author, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(resource.description, style = MaterialTheme.typography.bodySmall, color = Color.Gray, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(resource.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
-            Icon(Icons.AutoMirrored.Filled.OpenInNew, null, tint = Color.LightGray, modifier = Modifier.size(20.dp).padding(start = 8.dp))
+            Icon(Icons.AutoMirrored.Filled.OpenInNew, null, tint = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.size(20.dp).padding(start = 8.dp))
         }
     }
 }

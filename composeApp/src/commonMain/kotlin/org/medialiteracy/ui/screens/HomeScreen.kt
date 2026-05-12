@@ -12,6 +12,8 @@ import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.ui.window.Dialog
+import org.medialiteracy.ui.LocalThemeIsDark
+import org.medialiteracy.ui.analyticalColors
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,15 +33,26 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
+import cafe.adriel.voyager.navigator.Navigator
 import org.medialiteracy.ui.components.AppBarTitle
+import org.medialiteracy.ui.LocalRootNavigator
 
 class HomeScreen : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
+        val rootNavigator = LocalRootNavigator.current ?: navigator
         val screenModel = rememberScreenModel { HomeScreenModel() }
         val orchestrator = rememberScreenModel { GemmaOrchestrator() }
+        val useDarkTheme = LocalThemeIsDark.current
+        
+        val blueColor = MaterialTheme.analyticalColors.blue
+        val tealColor = MaterialTheme.analyticalColors.teal
+        val redColor = MaterialTheme.analyticalColors.red
+        
+        val actualRootNavigator = rootNavigator
+        
         val savedAnalyses by screenModel.savedAnalyses.collectAsState()
         var articleToDelete by remember { mutableStateOf<SavedAnalysis?>(null) }
 
@@ -47,14 +60,14 @@ class HomeScreen : Screen {
             topBar = {
                 // Simplified TopAppBar with shadow but NO scroll animation/translation
                 Surface(
-                    shadowElevation = 8.dp,
-                    tonalElevation = 0.dp,
-                    color = Color.White
+                    shadowElevation = MaterialTheme.analyticalColors.appBarElevation,
+                    tonalElevation = 2.dp,
+                    color = MaterialTheme.colorScheme.surface
                 ) {
                     CenterAlignedTopAppBar(
                         title = { AppBarTitle("News Decoder") },
                         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                            containerColor = Color.White
+                            containerColor = Color.Transparent
                         )
                     )
                 }
@@ -80,7 +93,7 @@ class HomeScreen : Screen {
                         Text(
                             "Select an input method below to analyze internal consistency and rhetorical patterns.",
                             style = MaterialTheme.typography.bodyLarge,
-                            color = Color.Gray
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -90,9 +103,9 @@ class HomeScreen : Screen {
                         title = "Paste Text",
                         description = "Quickly analyze articles, blog posts, or copied text fragments.",
                         icon = Icons.AutoMirrored.Filled.Assignment,
-                        containerColor = Color(0xFF3F51B5),
+                        containerColor = blueColor,
                         onClick = { 
-                            navigator.push(PasteInputScreen()) 
+                            actualRootNavigator.push(PasteInputScreen()) 
                         }
                     )
                 }
@@ -102,9 +115,9 @@ class HomeScreen : Screen {
                         title = "Scan Newspaper",
                         description = "Use your camera to extract text from physical media.",
                         icon = Icons.Default.CropFree,
-                        containerColor = Color(0xFF00796B),
+                        containerColor = tealColor,
                         onClick = { 
-                            navigator.push(PhotoPickerScreen()) 
+                            actualRootNavigator.push(PhotoPickerScreen()) 
                         }
                     )
                 }
@@ -114,9 +127,9 @@ class HomeScreen : Screen {
                         title = "Record Audio",
                         description = "Transcribe and analyze live speeches or broadcasts.",
                         icon = Icons.Default.Mic,
-                        containerColor = Color(0xFFC62828),
+                        containerColor = redColor,
                         onClick = { 
-                            navigator.push(AudioPickerScreen()) 
+                            actualRootNavigator.push(AudioPickerScreen()) 
                         }
                     )
                 }
@@ -136,7 +149,7 @@ class HomeScreen : Screen {
                             Text(
                                 "VIEW ALL",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF3F51B5),
+                                color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -147,7 +160,7 @@ class HomeScreen : Screen {
                             analysis = analysis,
                             onClick = {
                                 orchestrator.reset()
-                                navigator.push(AnalysisScreen(
+                                actualRootNavigator.push(AnalysisScreen(
                                     inputText = analysis.originalArticleText,
                                     cachedResult = analysis.analysisResult,
                                     analysisId = analysis.id
@@ -164,10 +177,10 @@ class HomeScreen : Screen {
                             modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(Icons.Default.History, null, tint = Color.LightGray, modifier = Modifier.size(64.dp))
+                            Icon(Icons.Default.History, null, tint = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.size(64.dp))
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text("No history yet", color = Color.Gray, fontWeight = FontWeight.Medium)
-                            Text("Start an analysis to see history here.", style = MaterialTheme.typography.bodySmall, color = Color.LightGray)
+                            Text("No history yet", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
+                            Text("Start an analysis to see history here.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                         }
                     }
                 }
@@ -267,7 +280,7 @@ fun RecentAnalysisCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -286,10 +299,10 @@ fun RecentAnalysisCard(
                     contentColor = when {
                         result.credibilityScore > 70 -> Color(0xFF004D40)
                         result.credibilityScore < 40 -> Color(0xFFBF360C)
-                        else -> Color.DarkGray
+                        else -> MaterialTheme.colorScheme.onSurface
                     }
                 )
-                Text(timeStr, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                Text(timeStr, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -305,13 +318,13 @@ fun RecentAnalysisCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Analytics, null, modifier = Modifier.size(14.dp), tint = Color.Gray)
+                    Icon(Icons.Default.Analytics, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Score: ${result.credibilityScore}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text("Score: ${result.credibilityScore}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 
                 IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.DeleteOutline, null, tint = Color.LightGray, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.DeleteOutline, null, tint = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.size(18.dp))
                 }
             }
         }

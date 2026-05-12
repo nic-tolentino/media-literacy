@@ -1,5 +1,6 @@
 package org.medialiteracy.ui.screens
 import org.medialiteracy.ui.components.AppBarTitle
+import org.medialiteracy.ui.analyticalColors
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -43,14 +44,21 @@ class PhotoPickerScreen : Screen {
 
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = { AppBarTitle("Scan Newspaper") },
-                    navigationIcon = {
-                        IconButton(onClick = { navigator.pop() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
-                        }
-                    }
-                )
+                Surface(
+                    shadowElevation = MaterialTheme.analyticalColors.appBarElevation,
+                    tonalElevation = 2.dp,
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    TopAppBar(
+                        title = { AppBarTitle("Scan News") },
+                        navigationIcon = {
+                            IconButton(onClick = { navigator.pop() }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                            }
+                        },
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
+                    )
+                }
             }
         ) { padding ->
             Column(
@@ -65,15 +73,15 @@ class PhotoPickerScreen : Screen {
                     onClick = { launcher.launchCamera() },
                     modifier = Modifier.size(200.dp),
                     shape = RoundedCornerShape(24.dp),
-                    color = Color(0xFFF5F5F5),
-                    border = BorderStroke(2.dp, Color.LightGray)
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             Icons.Default.CameraAlt, 
                             contentDescription = "Capture",
                             modifier = Modifier.size(64.dp),
-                            tint = Color(0xFF00796B)
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -83,12 +91,13 @@ class PhotoPickerScreen : Screen {
                 Text(
                     "Capture an article to extract text",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     "Gemma will use OCR to read and deconstruct the argument.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
 
@@ -99,13 +108,13 @@ class PhotoPickerScreen : Screen {
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF00796B),
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
-                    Icon(Icons.Default.AddPhotoAlternate, null, tint = Color.White)
+                    Icon(Icons.Default.AddPhotoAlternate, null, tint = MaterialTheme.colorScheme.onPrimary)
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("Select from Gallery", color = Color.White)
+                    Text("Select from Gallery", color = MaterialTheme.colorScheme.onPrimary)
                 }
             }
         }

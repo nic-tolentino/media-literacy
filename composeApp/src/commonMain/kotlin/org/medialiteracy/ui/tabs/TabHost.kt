@@ -1,4 +1,5 @@
 package org.medialiteracy.ui.tabs
+import org.medialiteracy.ui.analyticalColors
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.unit.dp
@@ -8,6 +9,7 @@ import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -15,18 +17,21 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.background
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.Navigator
-import cafe.adriel.voyager.navigator.tab.CurrentTab
-import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
+import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.currentOrThrow
 import cafe.adriel.voyager.navigator.tab.Tab
-import cafe.adriel.voyager.navigator.tab.TabNavigator
 import cafe.adriel.voyager.navigator.tab.TabOptions
+import cafe.adriel.voyager.navigator.tab.TabNavigator
+import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
+import cafe.adriel.voyager.navigator.tab.CurrentTab
 import org.medialiteracy.ui.screens.HomeScreen
 import org.medialiteracy.ui.screens.LearningScreen
 import org.medialiteracy.ui.screens.SettingsScreen
+import androidx.compose.runtime.compositionLocalOf
+import org.medialiteracy.ui.LocalRootNavigator
 
 /**
  * TabHost serves as the main navigation container for the application.
- * Restored the prominent shadow for the bottom navigation bar.
  */
 class TabHost : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -36,24 +41,19 @@ class TabHost : Screen {
             Scaffold(
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 bottomBar = {
-                    Column {
-                        // Using Divider (compatible with most M3 versions) to ensure separation 
-                        // and a prominent shadow surface for visual depth.
-                        Divider(color = Color.LightGray.copy(alpha = 0.3f), thickness = 1.dp)
-                        Surface(
-                            shadowElevation = 16.dp, 
+                    Surface(
+                        shadowElevation = 0.dp, 
+                        tonalElevation = 0.dp,
+                        color = MaterialTheme.colorScheme.surface
+                    ) {
+                        NavigationBar(
+                            containerColor = MaterialTheme.colorScheme.surface,
                             tonalElevation = 0.dp,
-                            color = Color.White
+                            modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
                         ) {
-                            NavigationBar(
-                                containerColor = Color.White,
-                                tonalElevation = 0.dp,
-                                modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
-                            ) {
-                                TabNavigationItem(AnalyseTab)
-                                TabNavigationItem(LearnTab)
-                                TabNavigationItem(SettingsTab)
-                            }
+                            TabNavigationItem(AnalyseTab)
+                            TabNavigationItem(LearnTab)
+                            TabNavigationItem(SettingsTab)
                         }
                     }
                 }
@@ -77,21 +77,23 @@ private fun RowScope.TabNavigationItem(tab: Tab) {
         icon = { 
             Icon(
                 painter = tab.options.icon!!, 
-                contentDescription = tab.options.title
+                contentDescription = tab.options.title,
+                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             ) 
         },
         label = { 
             Text(
                 tab.options.title,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             ) 
         },
         colors = NavigationBarItemDefaults.colors(
-            selectedIconColor = Color(0xFF1A237E),
-            selectedTextColor = Color(0xFF1A237E),
-            unselectedIconColor = Color.Gray,
-            unselectedTextColor = Color.Gray,
-            indicatorColor = Color(0xFFE8EAF6)
+            selectedIconColor = MaterialTheme.colorScheme.primary,
+            selectedTextColor = MaterialTheme.colorScheme.primary,
+            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
         )
     )
 }

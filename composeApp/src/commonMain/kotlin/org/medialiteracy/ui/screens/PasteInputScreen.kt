@@ -1,5 +1,6 @@
 package org.medialiteracy.ui.screens
 import org.medialiteracy.ui.components.AppBarTitle
+import org.medialiteracy.ui.analyticalColors
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,26 +22,37 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import cafe.adriel.voyager.core.model.rememberScreenModel
 import org.medialiteracy.domain.GemmaOrchestrator
+import org.medialiteracy.ui.LocalRootNavigator
 
 class PasteInputScreen : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
+        val rootNavigator = LocalRootNavigator.current ?: navigator
         var text by remember { mutableStateOf("") }
+        
+        val actualNavigator = rootNavigator
 
         val orchestrator = rememberScreenModel { GemmaOrchestrator() }
 
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = { AppBarTitle("Paste Content") },
-                    navigationIcon = {
-                        IconButton(onClick = { navigator.pop() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
-                        }
-                    }
-                )
+                Surface(
+                    shadowElevation = MaterialTheme.analyticalColors.appBarElevation,
+                    tonalElevation = 2.dp,
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    TopAppBar(
+                        title = { AppBarTitle("Paste Content") },
+                        navigationIcon = {
+                            IconButton(onClick = { navigator.pop() }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                            }
+                        },
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
+                    )
+                }
             }
         ) { padding ->
             Column(
@@ -58,13 +70,13 @@ class PasteInputScreen : Screen {
                         "Article Text",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     
                     Text(
                         "TEST SAMPLES",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF3F51B5),
+                        color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -79,10 +91,10 @@ class PasteInputScreen : Screen {
                             onClick = { text = article.content },
                             label = { Text(article.title) },
                             colors = AssistChipDefaults.assistChipColors(
-                                labelColor = Color(0xFF3F51B5)
+                                labelColor = MaterialTheme.colorScheme.primary
                               ),
                               border = AssistChipDefaults.assistChipBorder(
-                                  borderColor = Color(0xFF3F51B5),
+                                  borderColor = MaterialTheme.colorScheme.primary,
                                   borderWidth = 1.dp
                               )
                           )
@@ -100,8 +112,8 @@ class PasteInputScreen : Screen {
                       },
                       shape = RoundedCornerShape(16.dp),
                       colors = TextFieldDefaults.outlinedTextFieldColors(
-                          focusedBorderColor = Color(0xFF3F51B5),
-                          unfocusedBorderColor = Color.LightGray
+                          focusedBorderColor = MaterialTheme.colorScheme.primary,
+                          unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                       )
                   )
   
@@ -112,7 +124,7 @@ class PasteInputScreen : Screen {
                           if (text.isNotBlank()) {
                               orchestrator.reset()
                               // Use replace so backing out from AnalysisScreen goes to Home
-                              navigator.replace(AnalysisScreen(text))
+                              actualNavigator.replace(AnalysisScreen(text))
                           }
                       },
                     modifier = Modifier
@@ -121,13 +133,13 @@ class PasteInputScreen : Screen {
                     shape = RoundedCornerShape(16.dp),
                     enabled = text.isNotBlank(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF3F51B5),
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
-                    Icon(Icons.Default.AutoAwesome, null, tint = Color.White)
+                    Icon(Icons.Default.AutoAwesome, null, tint = MaterialTheme.colorScheme.onPrimary)
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("Deconstruct with Gemma", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("Deconstruct with Gemma", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
                 }
             }
         }

@@ -1,5 +1,6 @@
 package org.medialiteracy.ui.screens
 import org.medialiteracy.ui.components.AppBarTitle
+import org.medialiteracy.ui.analyticalColors
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -49,14 +50,21 @@ class AudioPickerScreen : Screen {
 
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = { AppBarTitle("Analyze Audio") },
-                    navigationIcon = {
-                        IconButton(onClick = { navigator.pop() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
-                        }
-                    }
-                )
+                Surface(
+                    shadowElevation = MaterialTheme.analyticalColors.appBarElevation,
+                    tonalElevation = 2.dp,
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    TopAppBar(
+                        title = { AppBarTitle("Record Audio") },
+                        navigationIcon = {
+                            IconButton(onClick = { navigator.pop() }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                            }
+                        },
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
+                    )
+                }
             }
         ) { padding ->
             Column(
@@ -78,15 +86,15 @@ class AudioPickerScreen : Screen {
                     },
                     modifier = Modifier.size(160.dp),
                     shape = CircleShape,
-                    color = if (isRecording) Color(0xFFFFEBEE) else Color(0xFFF5F5F5),
-                    border = BorderStroke(2.dp, if (isRecording) Color.Red else Color.LightGray)
+                    color = if (isRecording) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    border = BorderStroke(2.dp, if (isRecording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             Icons.Default.Mic, 
                             contentDescription = "Record",
                             modifier = Modifier.size(64.dp),
-                            tint = if (isRecording) Color.Red else Color(0xFFC62828)
+                            tint = if (isRecording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary
                         )
                     }
                 }
@@ -97,7 +105,7 @@ class AudioPickerScreen : Screen {
                     if (isRecording) "Recording... Tap to stop" else "Record speech or broadcast",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (isRecording) Color.Red else Color.Black
+                    color = if (isRecording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                 )
                 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -105,7 +113,7 @@ class AudioPickerScreen : Screen {
                 Text(
                     "Analyze live audio for logical depth and tone.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
 
@@ -116,25 +124,25 @@ class AudioPickerScreen : Screen {
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFC62828),
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
-                    Icon(Icons.Default.AudioFile, null, tint = Color.White)
+                    Icon(Icons.Default.AudioFile, null, tint = MaterialTheme.colorScheme.onPrimary)
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("Select Audio File", color = Color.White)
+                    Text("Select Audio File", color = MaterialTheme.colorScheme.onPrimary)
                 }
             }
 
             if (isProcessing) {
                 Box(
-                    modifier = Modifier.fillMaxSize().background(Color.White.copy(alpha = 0.8f)),
+                    modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background.copy(alpha = 0.8f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = Color(0xFFC62828))
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("Decoding Audio...", fontWeight = FontWeight.Bold, color = Color(0xFFC62828))
+                        Text("Decoding Audio...", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }

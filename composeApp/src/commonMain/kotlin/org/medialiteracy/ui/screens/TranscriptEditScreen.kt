@@ -1,5 +1,6 @@
 package org.medialiteracy.ui.screens
 import org.medialiteracy.ui.components.AppBarTitle
+import org.medialiteracy.ui.analyticalColors
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -32,33 +33,40 @@ data class TranscriptEditScreen(
 
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = { AppBarTitle("Edit Source Text") },
-                    navigationIcon = {
-                        IconButton(onClick = { navigator.pop() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
-                        }
-                    },
-                    actions = {
-                        if (hasChanged) {
-                            Button(
-                                onClick = { 
-                                    onReRun(text)
-                                    navigator.pop()
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF3F51B5),
-                                    contentColor = Color.White
-                                ),
-                                modifier = Modifier.padding(end = 8.dp)
-                            ) {
-                                Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp), tint = Color.White)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Re-run", color = Color.White)
+                Surface(
+                    shadowElevation = MaterialTheme.analyticalColors.appBarElevation,
+                    tonalElevation = 2.dp,
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    TopAppBar(
+                        title = { AppBarTitle("Refine Text") },
+                        navigationIcon = {
+                            IconButton(onClick = { navigator.pop() }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                             }
-                        }
-                    }
-                )
+                        },
+                        actions = {
+                            if (hasChanged) {
+                                Button(
+                                    onClick = { 
+                                        onReRun(text)
+                                        navigator.pop()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                    ),
+                                    modifier = Modifier.padding(end = 8.dp)
+                                ) {
+                                    Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onPrimary)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Re-run", color = MaterialTheme.colorScheme.onPrimary)
+                                }
+                            }
+                        },
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
+                    )
+                }
             }
         ) { padding ->
             Column(
@@ -70,7 +78,7 @@ data class TranscriptEditScreen(
                 Text(
                     "You can manually correct transcription errors or refine the source text before re-running the logic analysis.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
                 
@@ -83,8 +91,8 @@ data class TranscriptEditScreen(
                     placeholder = { Text("Source text...") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp),
                     colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = Color(0xFF3F51B5),
-                        unfocusedBorderColor = Color.LightGray
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
                     )
                 )
             }

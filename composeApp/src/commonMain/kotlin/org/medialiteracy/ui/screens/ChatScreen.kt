@@ -1,5 +1,6 @@
 package org.medialiteracy.ui.screens
 import org.medialiteracy.ui.components.AppBarTitle
+import org.medialiteracy.ui.analyticalColors
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -90,18 +91,25 @@ data class ChatScreen(
 
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = { AppBarTitle("AI Logic Analyst") },
-                    navigationIcon = {
-                        IconButton(onClick = { navigator.pop() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
-                    }
-                )
+                Surface(
+                    shadowElevation = MaterialTheme.analyticalColors.appBarElevation,
+                    tonalElevation = 2.dp,
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    TopAppBar(
+                        title = { AppBarTitle("AI Logic Analyst") },
+                        navigationIcon = {
+                            IconButton(onClick = { navigator.pop() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+                        },
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
+                    )
+                }
             },
             bottomBar = {
                 Surface(tonalElevation = 2.dp) {
                     Column {
                         if (isGenerating) {
-                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(2.dp), color = Color(0xFF3F51B5))
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(2.dp), color = MaterialTheme.colorScheme.primary)
                         }
                         Row(modifier = Modifier.padding(16.dp).navigationBarsPadding().imePadding(), verticalAlignment = Alignment.CenterVertically) {
                             TextField(
@@ -111,13 +119,18 @@ data class ChatScreen(
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(24.dp),
                                 enabled = !isGenerating,
-                                colors = TextFieldDefaults.textFieldColors(containerColor = Color(0xFFF1F3F4), focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent)
+                                colors = TextFieldDefaults.textFieldColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant, 
+                                    focusedIndicatorColor = Color.Transparent, 
+                                    unfocusedIndicatorColor = Color.Transparent,
+                                    cursorColor = MaterialTheme.colorScheme.primary
+                                )
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             FloatingActionButton(
                                 onClick = { if (messageText.isNotBlank() && !isGenerating) { val t = messageText; messages.add(ChatMessage(t, true)); messageText = ""; sendMessage(t) } },
-                                containerColor = if (isGenerating) Color.LightGray else Color(0xFF3F51B5),
-                                contentColor = Color.White,
+                                containerColor = if (isGenerating) MaterialTheme.colorScheme.outlineVariant else MaterialTheme.colorScheme.primary,
+                                contentColor = if (isGenerating) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimary,
                                 shape = CircleShape,
                                 modifier = Modifier.size(48.dp)
                             ) { Icon(Icons.AutoMirrored.Filled.Send, null) }
@@ -139,7 +152,7 @@ data class ChatScreen(
                 if (isGenerating && streamingResponse.isEmpty()) {
                     item { 
                         Box(Modifier.padding(start = 12.dp)) {
-                           Text("Gemma is reasoning...", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                           Text("Gemma is reasoning...", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -158,10 +171,10 @@ fun ChatBubble(msg: ChatMessage) {
                 .fillMaxWidth(0.9f)
                 .wrapContentWidth(if (msg.isUser) Alignment.End else Alignment.Start)
                 .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = if (msg.isUser) 16.dp else 0.dp, bottomEnd = if (msg.isUser) 0.dp else 16.dp))
-                .background(if (msg.isUser) Color(0xFF3F51B5) else Color(0xFFF1F3F4))
+                .background(if (msg.isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
                 .padding(14.dp)
         ) {
-            Text(msg.text, color = if (msg.isUser) Color.White else Color.Black, fontSize = 15.sp, lineHeight = 22.sp)
+            Text(msg.text, color = if (msg.isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 15.sp, lineHeight = 22.sp)
         }
     }
 }

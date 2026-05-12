@@ -79,8 +79,7 @@ class AndroidLlmEngine : LlmEngine {
             try {
                 if (modelFile == null) {
                     val searchedPaths = potentialLocations.joinToString("\n") { "- ${it.absolutePath}" }
-            Logger.e("GemmaEngine", "Model not found. Searched:\n$searchedPaths")
-                    return 
+                    throw Exception("Model file not found. Searched paths:\n$searchedPaths")
                 }
 
                 val modelPath = modelFile.absolutePath
@@ -161,12 +160,18 @@ class AndroidLlmEngine : LlmEngine {
                             maxNumTokens = 2048,
                             maxNumImages = 1
                         )
-                        engine = Engine(fallbackConfig).apply { initialize() }
-                        Logger.i("GemmaEngine", "LiteRT-LM Engine initialized with emergency CPU fallback")
+                        try {
+                            engine = Engine(fallbackConfig).apply { initialize() }
+                            Logger.i("GemmaEngine", "LiteRT-LM Engine initialized with emergency CPU fallback")
+                        } catch (fallbackError: Exception) {
+                            Logger.e("GemmaEngine", "Emergency CPU fallback failed: ${fallbackError.message}")
+                            throw fallbackError // Critical failure
+                        }
                     }
                 }
             } catch (e: Exception) {
                 Logger.e("GemmaEngine", "Failed to initialize LiteRT-LM: ${e.message}")
+                throw e // Propagate the error so InferenceService knows it failed
             }
         }
     }
@@ -236,7 +241,7 @@ class AndroidLlmEngine : LlmEngine {
             val contentList = mutableListOf<Content>()
             content.image?.let { contentList.add(Content.ImageBytes(it)) }
             content.audio?.let { 
-                val wrapped = if (it.size > 4 && it[0] == 'R'.toByte() && it[1] == 'I'.toByte() && it[2] == 'F'.toByte() && it[3] == 'F'.toByte()) {
+                val wrapped = if (it.size > 4 && it[0] == 'R'.code.toByte() && it[1] == 'I'.code.toByte() && it[2] == 'F'.code.toByte() && it[3] == 'F'.code.toByte()) {
                     it
                 } else {
                     AudioDecoder.wrapInWav(it)

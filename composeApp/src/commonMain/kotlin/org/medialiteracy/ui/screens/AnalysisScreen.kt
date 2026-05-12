@@ -1,6 +1,7 @@
 package org.medialiteracy.ui.screens
 
 import org.medialiteracy.ui.components.AppBarTitle
+import org.medialiteracy.ui.analyticalColors
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -77,7 +78,7 @@ data class AnalysisScreen(
             topBar = {
                 NewsDecoderHeader { navigator.pop() }
             },
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.background
         ) { padding ->
             Box(modifier = Modifier.fillMaxSize().padding(padding)) {
                 when (val s = state) {
@@ -131,16 +132,23 @@ data class AnalysisScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewsDecoderHeader(onClose: () -> Unit) {
-    CenterAlignedTopAppBar(
-        title = {
-            AppBarTitle("News Decoder")
-        },
-        navigationIcon = {
-            IconButton(onClick = onClose) {
-                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color(0xFF1A237E))
-            }
-        }
-    )
+    Surface(
+        shadowElevation = MaterialTheme.analyticalColors.appBarElevation,
+        tonalElevation = 2.dp,
+        color = MaterialTheme.colorScheme.surface
+    ) {
+        CenterAlignedTopAppBar(
+            title = {
+                AppBarTitle("News Decoder")
+            },
+            navigationIcon = {
+                IconButton(onClick = onClose) {
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.primary)
+                }
+            },
+            colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
+        )
+    }
 }
 
 @Composable
@@ -161,12 +169,12 @@ fun ReportContent(
                 "Structural Analysis Report",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 "Comprehensive evaluation of logical structure, evidentiary support, and rhetorical framing.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(16.dp))
             val fullTranscript = result.fullTranscript
@@ -181,13 +189,13 @@ fun ReportContent(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF3F51B5),
-                            contentColor = Color.White
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         )
                     ) {
-                        Icon(Icons.Default.Description, null, modifier = Modifier.size(18.dp), tint = Color.White)
+                        Icon(Icons.Default.Description, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onPrimary)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("View & Edit Source Text", fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("View & Edit Source Text", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
                     }
             }
         }
@@ -203,7 +211,7 @@ fun ReportContent(
                     result.summary,
                     style = MaterialTheme.typography.bodyMedium,
                     lineHeight = 22.sp,
-                    color = Color.DarkGray
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(20.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -211,14 +219,14 @@ fun ReportContent(
                         label = "Primary Strength",
                         value = result.primaryStrength,
                         icon = Icons.Default.CheckCircle,
-                        iconColor = Color(0xFF00897B),
+                        iconColor = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.weight(1f)
                     )
                     SmallMetricCard(
                         label = "Observation Area",
                         value = result.observationArea,
                         icon = Icons.Default.Info,
-                        iconColor = Color(0xFF424242),
+                        iconColor = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -241,17 +249,17 @@ fun ReportContent(
             ) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE8EAF6).copy(alpha = 0.5f)),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.GraphicEq, null, tint = Color(0xFF3F51B5), modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.GraphicEq, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             result.vocalTone ?: "",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1A237E)
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -270,9 +278,9 @@ fun ReportContent(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     result.keyClaims.forEach { claim ->
                         Row(verticalAlignment = Alignment.Top) {
-                            Icon(Icons.Default.RadioButtonChecked, null, tint = Color(0xFF3F51B5), modifier = Modifier.size(14.dp).padding(top = 4.dp))
+                            Icon(Icons.Default.RadioButtonChecked, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp).padding(top = 4.dp))
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text(claim, style = MaterialTheme.typography.bodySmall, color = Color.DarkGray)
+                            Text(claim, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -313,7 +321,7 @@ fun ReportContent(
             onIconClick = { onLogicHatClick("Can you help me understand these rhetorical patterns better?") }
         ) {
             if (result.fallacies.isEmpty()) {
-                Text("No significant patterns detected in this initial pass.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+                Text("No significant patterns detected in this initial pass.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 result.fallacies.forEach { fallacy ->
                     PatternCard(
@@ -335,7 +343,7 @@ fun ReportContent(
         Text(
             "This report evaluates structural logic and rhetorical patterns. It does not verify factual accuracy.",
             style = MaterialTheme.typography.labelSmall,
-            color = Color.LightGray,
+            color = MaterialTheme.colorScheme.outline,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
         )
@@ -358,11 +366,11 @@ fun SectionShimmer() {
     )
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        Box(modifier = Modifier.fillMaxWidth().height(16.dp).clip(RoundedCornerShape(4.dp)).background(Color.LightGray.copy(alpha = alpha)))
+        Box(modifier = Modifier.fillMaxWidth().height(16.dp).clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = alpha)))
         Spacer(modifier = Modifier.height(8.dp))
-        Box(modifier = Modifier.fillMaxWidth(0.7f).height(16.dp).clip(RoundedCornerShape(4.dp)).background(Color.LightGray.copy(alpha = alpha)))
+        Box(modifier = Modifier.fillMaxWidth(0.7f).height(16.dp).clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = alpha)))
         Spacer(modifier = Modifier.height(16.dp))
-        Box(modifier = Modifier.fillMaxWidth().height(100.dp).clip(RoundedCornerShape(8.dp)).background(Color.LightGray.copy(alpha = alpha)))
+        Box(modifier = Modifier.fillMaxWidth().height(100.dp).clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = alpha)))
     }
 }
 
@@ -377,21 +385,21 @@ fun AnalysisSectionCard(
 ) {
     OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEEEEEE)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     if (subtitle != null) {
-                        Text(subtitle, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                        Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 if (!isLoading) {
                     IconButton(onClick = onIconClick, modifier = Modifier.size(24.dp)) {
-                        Icon(icon, null, tint = Color(0xFF3F51B5), modifier = Modifier.size(18.dp))
+                        Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                     }
                 }
             }
@@ -409,17 +417,17 @@ fun AnalysisSectionCard(
 fun SmallMetricCard(label: String, value: String, icon: ImageVector, iconColor: Color, modifier: Modifier) {
     Surface(
         modifier = modifier,
-        color = Color(0xFFFAFAFA),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         shape = RoundedCornerShape(8.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF0F0F0))
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(icon, null, tint = iconColor, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = Color.Black)
+                Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             }
         }
     }
@@ -432,12 +440,12 @@ fun ThinkingState(tokens: String) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        CircularProgressIndicator(color = Color(0xFF1A237E), strokeWidth = 4.dp, modifier = Modifier.size(48.dp))
+        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, strokeWidth = 4.dp, modifier = Modifier.size(48.dp))
         Spacer(modifier = Modifier.height(24.dp))
-        Text("Gemma is deconstructing structure...", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("Gemma is deconstructing structure...", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
         Spacer(modifier = Modifier.height(8.dp))
         SelectionContainer {
-            Text(tokens.takeLast(100), style = MaterialTheme.typography.bodySmall, color = Color.Gray, textAlign = TextAlign.Center)
+            Text(tokens.takeLast(100), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         }
     }
 }
@@ -457,22 +465,26 @@ fun ErrorState(message: String, onRetry: () -> Unit) {
         Button(
             onClick = onRetry,
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF3F51B5),
-                contentColor = Color.White
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
             ),
             shape = RoundedCornerShape(12.dp)
         ) { 
-            Text("Retry Analysis", fontWeight = FontWeight.Bold, color = Color.White) 
+            Text("Retry Analysis", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary) 
         }
     }
 }
 
 @Composable
 fun NarrativePerspectiveIndicator(value: Float) {
+    val trackColor = MaterialTheme.colorScheme.outlineVariant
+    val indicatorColor = MaterialTheme.colorScheme.primary
+    val surfaceColor = MaterialTheme.colorScheme.surface
+
     Column {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Subjective", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-            Text("Objective", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+            Text("Subjective", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Objective", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(modifier = Modifier.height(12.dp))
         Canvas(modifier = Modifier.fillMaxWidth().height(8.dp)) {
@@ -480,19 +492,19 @@ fun NarrativePerspectiveIndicator(value: Float) {
             val height = size.height
             // Background track
             drawRoundRect(
-                Color(0xFFE0E0E0), 
+                trackColor, 
                 size = size, 
                 cornerRadius = androidx.compose.ui.geometry.CornerRadius(height / 2, height / 2)
             )
             // Indicator point
             val indicatorX = width * value
             drawCircle(
-                Color.White, 
+                surfaceColor, 
                 radius = 8.dp.toPx(), 
                 center = Offset(indicatorX, height / 2)
             )
             drawCircle(
-                Color(0xFF1A237E), 
+                indicatorColor, 
                 radius = 6.dp.toPx(), 
                 center = Offset(indicatorX, height / 2), 
                 style = Stroke(width = 2.dp.toPx())
@@ -503,6 +515,11 @@ fun NarrativePerspectiveIndicator(value: Float) {
 
 @Composable
 fun RadarChart(logic: Float, objectivity: Float, evidence: Float, credibility: Float) {
+    val webColor = MaterialTheme.colorScheme.outlineVariant
+    val polyColor = MaterialTheme.colorScheme.primary
+    val polyFillColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+
     // ENFORCE ABSOLUTE MAPPING: i=0 is North, clockwise logic
     // Order: 0=Evidence (T), 1=Logic (R), 2=Objectivity (B), 3=Credibility (L)
     val values = listOf(evidence, logic, objectivity, credibility)
@@ -513,11 +530,11 @@ fun RadarChart(logic: Float, objectivity: Float, evidence: Float, credibility: F
             val radius = size.width / 2
             
             // Central Point reference
-            drawCircle(Color.LightGray, radius = 2.dp.toPx(), center = center)
+            drawCircle(webColor, radius = 2.dp.toPx(), center = center)
             
             // Web circles (Absolute 0, 25, 50, 75, 100)
             for (i in 1..4) {
-                drawCircle(Color(0xFFE0E0E0), radius = radius * (i / 4f), center = center, style = Stroke(width = 1.dp.toPx()))
+                drawCircle(webColor, radius = radius * (i / 4f), center = center, style = Stroke(width = 1.dp.toPx()))
             }
             
             // Polygon
@@ -531,18 +548,18 @@ fun RadarChart(logic: Float, objectivity: Float, evidence: Float, credibility: F
                 val py = center.y + (radius * valPercent) * sin(angle)
                 
                 if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
-                drawCircle(Color(0xFF1A237E), radius = 4.dp.toPx(), center = Offset(px, py))
+                drawCircle(polyColor, radius = 4.dp.toPx(), center = Offset(px, py))
             }
             path.close()
-            drawPath(path, Color(0xFF3F51B5).copy(alpha = 0.35f), style = Fill)
-            drawPath(path, Color(0xFF1A237E), style = Stroke(width = 3.dp.toPx()))
+            drawPath(path, polyFillColor, style = Fill)
+            drawPath(path, polyColor, style = Stroke(width = 3.dp.toPx()))
         }
 
         // Labels
-        Text("EVIDENCE", modifier = Modifier.align(Alignment.TopCenter), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, color = Color.Gray)
-        Text("LOGIC", modifier = Modifier.align(Alignment.CenterEnd), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, color = Color.Gray)
-        Text("OBJECTIVITY", modifier = Modifier.align(Alignment.BottomCenter), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, color = Color.Gray)
-        Text("CREDIBILITY", modifier = Modifier.align(Alignment.CenterStart), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, color = Color.Gray)
+        Text("EVIDENCE", modifier = Modifier.align(Alignment.TopCenter), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, color = labelColor)
+        Text("LOGIC", modifier = Modifier.align(Alignment.CenterEnd), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, color = labelColor)
+        Text("OBJECTIVITY", modifier = Modifier.align(Alignment.BottomCenter), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, color = labelColor)
+        Text("CREDIBILITY", modifier = Modifier.align(Alignment.CenterStart), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, color = labelColor)
     }
 }
 
@@ -555,24 +572,24 @@ fun PatternCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFAFAFA)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEEEEEE)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         shape = RoundedCornerShape(8.dp)
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
-            Icon(Icons.AutoMirrored.Filled.Segment, null, tint = Color.Gray, modifier = Modifier.size(18.dp))
+            Icon(Icons.AutoMirrored.Filled.Segment, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(type, fontWeight = FontWeight.Bold, color = Color.Black)
+                Text(type, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(evidence, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Text(evidence, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Row {
                 IconButton(onClick = onInfoClick, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Default.Info, "Glossary", tint = Color(0xFF3F51B5), modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Info, "Glossary", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                 }
                 IconButton(onClick = onChatClick, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.Chat, "Chat", tint = Color(0xFF00897B), modifier = Modifier.size(18.dp))
+                    Icon(Icons.AutoMirrored.Filled.Chat, "Chat", tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(18.dp))
                 }
             }
         }
@@ -612,17 +629,17 @@ fun SourceTooLargeState(message: String, onBack: () -> Unit) {
             text = message,
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.bodyMedium,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = onBack,
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF1A237E),
-                contentColor = Color.White
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
             )
         ) {
-            Text("Back to Input", color = Color.White)
+            Text("Back to Input", color = MaterialTheme.colorScheme.onPrimary)
         }
     }
 }
