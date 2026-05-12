@@ -15,13 +15,43 @@ class GemmaOrchestrator : ScreenModel {
     private val inferenceService = ServiceRegistry.inferenceService
     private val repository = AnalysisRepository.getInstance()
 
+    private val modelRepository = ModelRepository.getInstance()
+
     val state: StateFlow<InferenceState> = coordinator.state
+    val downloadState: StateFlow<DownloadState> = modelRepository.downloadState
+    val installedVariant: StateFlow<ModelVariant?> = modelRepository.installedVariant
 
     /** 
      * Mapping for the legacy engine-level state if needed by old UI components.
      * Most UI should observe coordinator.state instead.
      */
     val engineState: StateFlow<EngineInternalState> = inferenceService.state
+
+    fun startModelDownload(variant: ModelVariant) {
+        modelRepository.startDownload(variant)
+    }
+
+    fun cancelDownload() = modelRepository.cancelDownload()
+    fun pauseDownload() = modelRepository.pauseDownload()
+    fun resumeDownload() = modelRepository.resumeDownload()
+
+    fun isOnline(): Boolean = modelRepository.isOnline()
+
+    suspend fun availableDiskBytes(): Long = modelRepository.availableDiskBytes()
+
+    fun canStartDownload(variant: ModelVariant, freeSpaceGb: Double): Boolean =
+        modelRepository.isOnline() && freeSpaceGb >= variant.approximateSizeGb
+
+    suspend fun resetEngine() {
+        ServiceRegistry.inferenceService.resetEngine()
+    }
+
+    fun deleteModel(variant: ModelVariant, onComplete: (Boolean) -> Unit) {
+        screenModelScope.launch {
+            val success = modelRepository.deleteModel(variant)
+            onComplete(success)
+        }
+    }
 
     fun startAnalysis(input: String) {
         coordinator.startAnalysis(input)
@@ -48,7 +78,7 @@ class GemmaOrchestrator : ScreenModel {
         }
     }
 
-    /** 
+    /**
      * Manually triggers a resource release (e.g. for backgrounding).
      */
     fun releaseResources() {
@@ -67,13 +97,4 @@ class GemmaOrchestrator : ScreenModel {
         coordinator.reset()
     }
 
-    fun resetEngine() {
-        screenModelScope.launch {
-            inferenceService.execute(InferenceCommand.Reset).collect()
-        }
-    }
-
-    fun downloadModel() {
-        // Mock download if needed
-    }
 }

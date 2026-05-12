@@ -1,5 +1,6 @@
 package org.medialiteracy.ui.screens
 import org.medialiteracy.ui.components.AppBarTitle
+import org.medialiteracy.ui.components.PrimaryButton
 import org.medialiteracy.ui.LocalThemeIsDark
 import org.medialiteracy.ui.analyticalColors
 
@@ -22,11 +23,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
+import cafe.adriel.voyager.core.model.rememberScreenModel
 import org.medialiteracy.domain.SettingsRepository
 import org.medialiteracy.domain.ThemeMode
+import org.medialiteracy.ui.LocalRootNavigator
 import cafe.adriel.voyager.navigator.Navigator
 import kotlinx.coroutines.launch
-import org.medialiteracy.ui.LocalRootNavigator
 
 class SettingsScreen : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -35,6 +37,29 @@ class SettingsScreen : Screen {
         val settingsRepository = remember { SettingsRepository.getInstance() }
         val themeMode by settingsRepository.getThemeMode().collectAsState(ThemeMode.SYSTEM)
         val scope = rememberCoroutineScope()
+
+        val orchestrator = rememberScreenModel { org.medialiteracy.domain.GemmaOrchestrator() }
+        val installedVariant by orchestrator.installedVariant.collectAsState()
+        val recommended = remember { org.medialiteracy.domain.DeviceCapabilityChecker.recommendedVariant() }
+        val freeSpaceGb by produceState(0.0) {
+            value = orchestrator.availableDiskBytes() / (1024.0 * 1024.0 * 1024.0)
+        }
+
+        var showDeleteDialog by remember { mutableStateOf(false) }
+        var showDownloadSheet by remember { mutableStateOf(false) }
+
+        if (showDownloadSheet) {
+            ModelDownloadSheet(
+                orchestrator = orchestrator,
+                onDismiss = { showDownloadSheet = false },
+                onComplete = { 
+                    showDownloadSheet = false
+                    scope.launch {
+                        orchestrator.resetEngine()
+                    }
+                }
+            )
+        }
 
          Scaffold(
             topBar = {
@@ -45,6 +70,12 @@ class SettingsScreen : Screen {
                 ) {
                     CenterAlignedTopAppBar(
                         title = { AppBarTitle("Settings") },
+                        navigationIcon = {
+                            val navigator = LocalRootNavigator.current
+                            IconButton(onClick = { navigator?.pop() }) {
+                                Icon(Icons.Default.ArrowBack, "Back")
+                            }
+                        },
                         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                             containerColor = Color.Transparent
                         )
@@ -67,42 +98,94 @@ class SettingsScreen : Screen {
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                Text("Model Configuration", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("AI Model", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                SettingRow(Icons.Default.Storage, "Gemma 4-E2B-it", "Version 1.2 (Active)")
-                SettingRow(Icons.Default.History, "Auto-clear History", "After 24 hours")
+                if (installedVariant != null) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Storage, null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(installedVariant?.displayName ?: "", fontWeight = FontWeight.Bold)
+                                Text("${installedVariant?.approximateSizeGb} GB · Active", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            IconButton(onClick = { showDeleteDialog = true }) {
+                                Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+
+                    if (installedVariant == org.medialiteracy.domain.ModelVariant.E2B && recommended == org.medialiteracy.domain.ModelVariant.E4B) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        UpgradeCard(
+                            freeSpaceGb = freeSpaceGb,
+                            onClick = { showDownloadSheet = true }
+                        )
+                    }
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("No model installed", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                                Text("Analysis features are disabled", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            PrimaryButton(
+                                text = "Download",
+                                onClick = { showDownloadSheet = true },
+                                modifier = Modifier.width(120.dp).height(40.dp)
+                            )
+                        }
+                    }
+                }
                 
                 Spacer(modifier = Modifier.height(32.dp))
                 
-                Text("Privacy & Security", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("App Configuration", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(16.dp))
                 
+                SettingRow(Icons.Default.History, "Auto-clear History", "After 24 hours")
                 SettingRow(Icons.Default.VpnKey, "Biometric Lock", "Disabled")
                 SettingRow(Icons.Default.CloudOff, "External Access", "Always Blocked")
                 
-                Spacer(modifier = Modifier.weight(1f))
-                
-                Button(
-                    onClick = { /* TODO */ }, 
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Delete Model Weights", color = MaterialTheme.colorScheme.onError)
-                }
-                Text(
-                    "This action cannot be undone. You will need to re-download the 1.2GB model to resume use.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 8.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
                 Spacer(modifier = Modifier.height(32.dp))
+                
+                if (showDeleteDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showDeleteDialog = false },
+                        title = { Text("Delete model file?") },
+                        text = { Text("This removes the ${installedVariant?.approximateSizeGb} GB ${installedVariant?.displayName} model from your device. Analysis features will be unavailable until you re-download a model.") },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    installedVariant?.let { variant ->
+                                        orchestrator.deleteModel(variant) { 
+                                            showDeleteDialog = false
+                                            // In a real app we'd refresh state here
+                                        }
+                                    }
+                                }
+                            ) {
+                                Text("Delete", color = MaterialTheme.colorScheme.error)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showDeleteDialog = false }) {
+                                Text("Cancel")
+                            }
+                        }
+                    )
+                }
             }
         }
     }
@@ -166,5 +249,30 @@ fun SettingRow(icon: ImageVector, title: String, value: String) {
             Text(value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
         }
         Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun UpgradeCard(freeSpaceGb: Double, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("✨ Upgrade available", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.weight(1f))
+                Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.primary)
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "Gemma 4 E4B · 3.4 GB. More accurate analysis — your device supports it. Needs 3.4 GB free temporarily (+1 GB net after upgrade).",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }

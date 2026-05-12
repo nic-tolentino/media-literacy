@@ -73,6 +73,7 @@ class AnalysisCoordinator(
                     summaryResponse += token
                     _state.value = InferenceState.Thinking(summaryResponse)
                 }
+                if (summaryResponse.isBlank()) throw Exception("Engine failed to generate a summary.")
 
                 // Initial result with summary
                 val initialResult = SummaryStage.parse(summaryResponse).copy(
@@ -91,6 +92,7 @@ class AnalysisCoordinator(
                 inferenceService.execute(InferenceCommand.Chat(claimsPrompt)).collect { token ->
                     claimsResponse += token
                 }
+                if (claimsResponse.isBlank()) throw Exception("Engine failed to extract claims.")
 
                 val claimsData = try {
                     json.decodeFromString<AnalysisResult>(claimsResponse.trim().removeSurrounding("```json", "```"))
@@ -109,6 +111,7 @@ class AnalysisCoordinator(
                 inferenceService.execute(InferenceCommand.Chat(metricsPrompt)).collect { token ->
                     metricsResponse += token
                 }
+                if (metricsResponse.isBlank()) throw Exception("Engine failed to generate metrics.")
                 
                 val scoresResult = try {
                     json.decodeFromString<AnalysisResult>(metricsResponse.trim().removeSurrounding("```json", "```"))
@@ -130,10 +133,10 @@ class AnalysisCoordinator(
                 Logger.i("AnalysisCoordinator", "Starting background deep scan...")
                 val fallacyPrompt = FallacyStage.buildPrompt()
                 var fallacyResponse = ""
-                
                 inferenceService.execute(InferenceCommand.Chat(fallacyPrompt)).collect { token ->
                     fallacyResponse += token
                 }
+                if (fallacyResponse.isBlank()) throw Exception("Engine failed to perform fallacy scan.")
                 
                 Logger.d("AnalysisCoordinator", "RAW FALLACY RESPONSE: ${fallacyResponse.takeLast(500)}")
 

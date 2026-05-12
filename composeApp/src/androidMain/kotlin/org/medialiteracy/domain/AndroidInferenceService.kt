@@ -21,6 +21,7 @@ private data class InternalCommand(
  */
 class AndroidInferenceService(
     private val engine: LlmEngine,
+    override val modelRepository: ModelRepository,
     private val scope: CoroutineScope,
     private val androidContext: Any, // Required for engine re-initialization on Reset
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default
@@ -34,6 +35,11 @@ class AndroidInferenceService(
 
     private val _metrics = MutableStateFlow(InferenceMetrics())
     override val metrics: StateFlow<InferenceMetrics> = _metrics.asStateFlow()
+
+    override suspend fun resetEngine() {
+        // Queue a reset command to ensure the engine re-initializes on the next turn
+        execute(InferenceCommand.Reset).collect { /* wait for completion */ }
+    }
 
     private var activeGenerationJob: Job? = null
     private var estimatedTokensUsed: Int = 0
@@ -61,15 +67,9 @@ class AndroidInferenceService(
 
         // Run on the specified dispatcher
         scope.launch(dispatcher) {
-            // High-priority boot sequence to ensure the engine is ready before first command
-            try {
-                _state.value = EngineInternalState.Initializing
-                engine.initialize(androidContext)
-                _state.value = EngineInternalState.Idle
-            } catch (e: Exception) {
-                Logger.e("InferenceService", "System boot failure: ${e.message}")
-                _state.value = EngineInternalState.Error
-            }
+            // Engine is lazily initialized on the first analysis command
+            // or explicitly via resetEngine() call.
+            _state.value = EngineInternalState.Idle
 
             for (internal in commandQueue) {
                 ensureActive()
@@ -105,9 +105,6 @@ class AndroidInferenceService(
         } catch (e: Exception) {
             Logger.e("InferenceService", "Critical error in actor loop: ${e.message}")
             handleInferenceError(e, tokens)
-        } finally {
-            // Ensure the flow completes for the caller if not already closed by error
-            tokens?.close()
         }
     }
 
@@ -137,6 +134,7 @@ class AndroidInferenceService(
                             totalChunks++
                         }
                     _state.value = EngineInternalState.Idle
+                    tokens?.close() // Normal completion
                 } catch (e: Exception) {
                     handleInferenceError(e, tokens)
                 }
@@ -192,6 +190,7 @@ class AndroidInferenceService(
                             tokens?.send(token)
                         }
                     _state.value = EngineInternalState.Idle
+                    tokens?.close()
                 } catch (e: Exception) {
                     handleInferenceError(e, tokens)
                 }
@@ -237,6 +236,7 @@ class AndroidInferenceService(
                             tokens?.send(token)
                         }
                     _state.value = EngineInternalState.Idle
+                    tokens?.close()
                 } catch (e: Exception) {
                     handleInferenceError(e, tokens)
                 }

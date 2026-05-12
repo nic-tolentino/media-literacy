@@ -32,6 +32,7 @@ import org.medialiteracy.domain.GemmaOrchestrator
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.coroutines.launch
 
 import cafe.adriel.voyager.navigator.Navigator
 import org.medialiteracy.ui.components.AppBarTitle
@@ -55,6 +56,37 @@ class HomeScreen : Screen {
         
         val savedAnalyses by screenModel.savedAnalyses.collectAsState()
         var articleToDelete by remember { mutableStateOf<SavedAnalysis?>(null) }
+
+        var showDownloadSheet by remember { mutableStateOf(false) }
+        var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+        
+        val installedVariant by orchestrator.installedVariant.collectAsState()
+        val isModelInstalled = installedVariant != null
+
+        fun handleAction(action: () -> Unit) {
+            if (isModelInstalled) {
+                action()
+            } else {
+                pendingAction = action
+                showDownloadSheet = true
+            }
+        }
+        val scope = rememberCoroutineScope()
+        
+        if (showDownloadSheet) {
+            ModelDownloadSheet(
+                orchestrator = orchestrator,
+                onDismiss = { showDownloadSheet = false },
+                onComplete = {
+                    showDownloadSheet = false
+                    scope.launch {
+                        orchestrator.resetEngine()
+                    }
+                    pendingAction?.invoke()
+                    pendingAction = null
+                }
+            )
+        }
 
         Scaffold(
             topBar = {
@@ -105,7 +137,7 @@ class HomeScreen : Screen {
                         icon = Icons.AutoMirrored.Filled.Assignment,
                         containerColor = blueColor,
                         onClick = { 
-                            actualRootNavigator.push(PasteInputScreen()) 
+                            handleAction { actualRootNavigator.push(PasteInputScreen()) }
                         }
                     )
                 }
@@ -117,7 +149,7 @@ class HomeScreen : Screen {
                         icon = Icons.Default.CropFree,
                         containerColor = tealColor,
                         onClick = { 
-                            actualRootNavigator.push(PhotoPickerScreen()) 
+                            handleAction { actualRootNavigator.push(PhotoPickerScreen()) }
                         }
                     )
                 }
@@ -129,7 +161,7 @@ class HomeScreen : Screen {
                         icon = Icons.Default.Mic,
                         containerColor = redColor,
                         onClick = { 
-                            actualRootNavigator.push(AudioPickerScreen()) 
+                            handleAction { actualRootNavigator.push(AudioPickerScreen()) }
                         }
                     )
                 }

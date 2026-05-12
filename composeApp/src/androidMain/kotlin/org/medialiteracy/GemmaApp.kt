@@ -2,7 +2,6 @@ package org.medialiteracy
 
 import android.app.Application
 import org.medialiteracy.domain.LlmEngine
-import org.medialiteracy.domain.initializeModelManager
 import org.medialiteracy.domain.initDataStore
 import java.io.File
 import kotlinx.coroutines.*
@@ -21,16 +20,20 @@ class GemmaApp : Application() {
         val engine = LlmEngine.getInstance()
         val repository = AnalysisRepository.getInstance()
         
-        // Load the 3.6GB model asynchronously so we don't crash with an ANR
-        appScope.launch(Dispatchers.IO) {
-            engine.initialize(this@GemmaApp)
-        }
-        
-        // Initialize the new Inference Service and Coordinator
-        val inferenceService = AndroidInferenceService(engine, appScope, this)
+        initModelRepository(this)
+        val modelRepository = PlatformModelRepository()
+        val inferenceService = AndroidInferenceService(engine, modelRepository, appScope, this)
         val analysisCoordinator = AnalysisCoordinator(inferenceService, repository, appScope)
         ServiceRegistry.init(inferenceService, analysisCoordinator)
         
-        initializeModelManager(this)
+        DeviceCapabilityChecker.init(this)
+        
+        // Only initialize engine if a model is already downloaded
+        // This avoids noisy error logs and unnecessary resource allocation for new users
+        appScope.launch {
+            if (ServiceRegistry.inferenceService.modelRepository.installedModelPath() != null) {
+                inferenceService.resetEngine()
+            }
+        }
     }
 }

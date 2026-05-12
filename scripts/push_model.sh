@@ -5,21 +5,16 @@
 
 if [ -z "$1" ]; then
     echo "Error: No model file path provided."
-    echo "Usage: ./scripts/push_model.sh /path/to/gemma.task"
+    echo "Usage: ./scripts/push_model.sh scripts/gemma-4-E4B-it.litertlm"
     exit 1
 fi
 
 MODEL_PATH=$1
+FILENAME=$(basename "$MODEL_PATH")
 PACKAGE_NAME="org.medialiteracy"
 
-# Extract extension (either 'task' or 'litertlm')
-EXTENSION="${MODEL_PATH##*.}"
-if [ "$EXTENSION" != "task" ] && [ "$EXTENSION" != "litertlm" ]; then
-    EXTENSION="task" # fallback
-fi
-
-TEMP_PATH="/data/local/tmp/gemma.$EXTENSION"
-DEST_PATH="/data/data/$PACKAGE_NAME/files/gemma.$EXTENSION"
+TEMP_PATH="/data/local/tmp/$FILENAME"
+DEST_PATH="/data/data/$PACKAGE_NAME/files/$FILENAME"
 
 # 0. Size Check
 FILE_SIZE=$(du -k "$MODEL_PATH" | cut -f1)
@@ -34,7 +29,7 @@ if [ "$FILE_SIZE" -gt 4500000 ]; then
     fi
 fi
 
-echo "🚀 Starting high-speed model transfer..."
+echo "🚀 Starting high-speed model transfer for $FILENAME..."
 
 # 1. Push to temp
 echo "📦 Pushing to temporary storage..."
@@ -44,7 +39,7 @@ adb shell "chmod 666 $TEMP_PATH"
 # 2. Move to app internal storage
 echo "🔐 Moving to app internal storage (requires run-as)..."
 adb shell "run-as $PACKAGE_NAME mkdir -p files"
-if adb shell "run-as $PACKAGE_NAME cp $TEMP_PATH files/gemma.$EXTENSION"; then
+if adb shell "run-as $PACKAGE_NAME cp $TEMP_PATH files/$FILENAME"; then
     echo "📄 File copied successfully within app context."
 else
     echo "❌ Error: Failed to copy file to app context. Ensure the app is installed and debuggable."

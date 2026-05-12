@@ -63,6 +63,12 @@ interface InferenceService {
     /** The current state of the engine. */
     val state: StateFlow<EngineInternalState>
 
+    /** Reference to the model management repository. */
+    val modelRepository: ModelRepository
+
+    /** Re-initializes the engine, usually after a model download. */
+    suspend fun resetEngine()
+
     /** Telemetry for the latest turn. */
     val metrics: Flow<InferenceMetrics>
 

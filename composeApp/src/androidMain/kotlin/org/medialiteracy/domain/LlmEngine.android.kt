@@ -65,13 +65,12 @@ class AndroidLlmEngine : LlmEngine {
             
             // Comprehensive search for the model file
             val potentialLocations = listOf(
+                // Production downloads land here (variant-named)
+                File(appContext.filesDir, ModelVariant.E4B.fileName),
+                File(appContext.filesDir, ModelVariant.E2B.fileName),
+                // Dev fallback: push_model.sh uses the generic name — keep for local dev workflow only
                 File(appContext.filesDir, "gemma.litertlm"),
-                File(appContext.filesDir, "gemma.task"),
-                File(appContext.getExternalFilesDir(null), "gemma.task"),
-                File(appContext.getExternalFilesDir(null), "gemma.litertlm"),
-                File("/data/local/tmp/gemma-2b-it-cpu-int4.bin"),
-                File("/data/local/tmp/gemma.task"),
-                File("/data/local/tmp/gemma.litertlm")
+                File(appContext.filesDir, "gemma.task")
             )
 
             val modelFile = potentialLocations.find { it.exists() }
@@ -108,10 +107,7 @@ class AndroidLlmEngine : LlmEngine {
                                 android.os.Build.HARDWARE.contains("virtio")
                 
                 // Hardware check: If we can't find libOpenCL, GPU inference is guaranteed to fail or crash on startup
-                val hasOpenCL = File("/system/vendor/lib64/libOpenCL.so").exists() || 
-                               File("/vendor/lib64/libOpenCL.so").exists() ||
-                               File("/vendor/lib64/egl/libGLES_mali.so").exists() ||
-                               File("/vendor/lib64/libOpenCL_adreno.so").exists()
+                val hasOpenCL = GpuUtils.checkOpenClAvailability()
                 
                 Logger.d("GemmaEngine", "Hardware Check: isEmulator=$isEmulator, hasOpenCL=$hasOpenCL")
                 if (!hasOpenCL) {
@@ -333,7 +329,6 @@ class AndroidLlmEngine : LlmEngine {
                 Logger.i("GemmaEngine", "Engine and session released.")
             }
         }
-        engineContext.close()
     }
 }
 

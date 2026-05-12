@@ -19,14 +19,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import kotlinx.coroutines.launch
 import org.medialiteracy.domain.EngineInternalState
 import org.medialiteracy.domain.GemmaOrchestrator
 import org.medialiteracy.domain.InferenceState
 import org.medialiteracy.ui.tabs.TabHost
+import org.medialiteracy.ui.components.PrimaryButton
 import org.jetbrains.compose.resources.painterResource
 import medialiteracy.composeapp.generated.resources.Res
 import medialiteracy.composeapp.generated.resources.app_logo
@@ -35,152 +36,127 @@ class OnboardingScreen : Screen {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val orchestrator = rememberScreenModel { GemmaOrchestrator() }
-        val state by orchestrator.state.collectAsState()
-
-        LaunchedEffect(Unit) {
-            orchestrator.downloadModel()
-        }
-
-        val engineState by orchestrator.engineState.collectAsState()
+        val scope = rememberCoroutineScope()
 
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(
-                modifier = Modifier.fillMaxSize().padding(32.dp),
+                modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp, vertical = 64.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Header Logo
-                Image(
-                    painter = painterResource(Res.drawable.app_logo),
-                    contentDescription = "News Decoder Logo",
-                    modifier = Modifier.size(120.dp)
-                )
-                
-                Spacer(modifier = Modifier.height(32.dp))
-                
-                Text(
-                    "Welcome to News Decoder",
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Text(
-                    "Establishing your private, on-device logic engine for safe media analysis.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                
-                Spacer(modifier = Modifier.height(48.dp))
-                
-                // Status Box
-                Card(
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    // Header Logo
+                    Image(
+                        painter = painterResource(Res.drawable.app_logo),
+                        contentDescription = "News Decoder Logo",
+                        modifier = Modifier.size(120.dp)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(32.dp))
+                    
+                    Text(
+                        "News Decoder",
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Text(
+                        "Your on-device companion for critical media analysis and truth discovery.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    Column(modifier = Modifier.padding(24.dp)) {
-                        when (engineState) {
-                            EngineInternalState.Initializing -> {
-                                StatusItem(
-                                    icon = Icons.Default.CloudDownload,
-                                    title = "Initializing Engine",
-                                    description = "Loading Gemma weights (1.2GB)",
-                                    progress = 0.5f // Indeterminate or mock
-                                )
-                            }
-                            EngineInternalState.Idle -> {
-                                StatusItem(
-                                    icon = Icons.Default.AutoAwesome,
-                                    title = "AI Ready",
-                                    description = "Optimization complete. You're ready to analyze.",
-                                    progress = 1f
-                                )
-                                
-                                LaunchedEffect(Unit) {
-                                    navigator.replaceAll(TabHost())
-                                }
-                            }
-                            EngineInternalState.Error -> {
-                                StatusItem(
-                                    icon = Icons.Default.Security,
-                                    title = "Initialization Failed",
-                                    description = "Model not found or corrupted. Please check your storage.",
-                                    progress = 0f,
-                                    isError = true
-                                )
-                                
-                                Spacer(modifier = Modifier.height(16.dp))
-                                
-                                Button(
-                                    onClick = { orchestrator.resetEngine() },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                                        contentColor = MaterialTheme.colorScheme.onErrorContainer
-                                    )
-                                ) {
-                                    Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Retry Initialization")
-                                }
-                            }
-                            else -> {
-                                Text("System status: $engineState", color = MaterialTheme.colorScheme.onSurface)
-                                LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                    FeatureHighlight(
+                        icon = Icons.Default.Security,
+                        title = "100% Private",
+                        description = "Analysis happens entirely on your device. Your data never leaves your phone."
+                    )
+                    FeatureHighlight(
+                        icon = Icons.Default.AutoAwesome,
+                        title = "Socratic AI",
+                        description = "Identify logical fallacies and bias using advanced on-device AI models."
+                    )
+                    FeatureHighlight(
+                        icon = Icons.Default.CloudDownload,
+                        title = "Offline Analysis",
+                        description = "Once models are downloaded, you can analyze media anywhere, even without internet."
+                    )
+                    FeatureHighlight(
+                        icon = Icons.Default.Refresh,
+                        title = "Free & Curated",
+                        description = "Totally free to use. Includes a curated library of media literacy learning resources."
+                    )
+                }
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    PrimaryButton(
+                        text = "Get Started",
+                        onClick = { 
+                            scope.launch {
+                                org.medialiteracy.domain.SettingsRepository.getInstance().setHasCompletedOnboarding(true)
+                                navigator.replaceAll(TabHost())
                             }
                         }
-                    }
+                    )
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    Text(
+                        "VERSION 1.0 · BETA",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline,
+                        letterSpacing = 2.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
-                
-                Spacer(modifier = Modifier.height(32.dp))
-                
-                Text(
-                    "100% OFFLINE. PRIVATE. SECURE.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.LightGray,
-                    letterSpacing = 2.sp,
-                    fontWeight = FontWeight.Bold
-                )
             }
         }
     }
 }
 
 @Composable
-fun StatusItem(icon: ImageVector, title: String, description: String, progress: Float, isError: Boolean = false) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(
-            icon, 
-            null, 
-            tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, 
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.width(12.dp))
+fun FeatureHighlight(icon: ImageVector, title: String, description: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top
+    ) {
+        Surface(
+            modifier = Modifier.size(48.dp),
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    icon,
+                    null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(16.dp))
         Column {
-            Text(title, fontWeight = FontWeight.Bold, color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
-            Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
-    Spacer(modifier = Modifier.height(16.dp))
-    LinearProgressIndicator(
-        progress = progress, 
-        modifier = Modifier.fillMaxWidth(),
-        color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-        trackColor = MaterialTheme.colorScheme.outlineVariant
-    )
-    Text(
-        if (isError) "ERROR" else "${(progress * 100).toInt()}%", 
-        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-        textAlign = TextAlign.End,
-        style = MaterialTheme.typography.labelSmall,
-        color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-    )
 }
