@@ -14,7 +14,9 @@ import kotlinx.serialization.decodeFromString
 class AnalysisCoordinator(
     private val inferenceService: InferenceService,
     private val repository: AnalysisRepository,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val transcriber: ImageTranscriber? = null,
+    private val resizer: ImageResizer? = null
 ) {
     private val _state = MutableStateFlow<InferenceState>(InferenceState.Idle)
     val state: StateFlow<InferenceState> = _state.asStateFlow()
@@ -96,7 +98,10 @@ class AnalysisCoordinator(
 
                 val claimsData = try {
                     json.decodeFromString<AnalysisResult>(claimsResponse.trim().removeSurrounding("```json", "```"))
-                } catch (e: Exception) { initialResult }
+                } catch (e: Exception) {
+                    Logger.e("AnalysisCoordinator", "Text Claims parse failed: ${e.message} | raw: ${claimsResponse.takeLast(500)}")
+                    initialResult
+                }
 
                 val updatedResultWithClaims = initialResult.copy(
                     keyClaims = claimsData.keyClaims,
@@ -115,7 +120,10 @@ class AnalysisCoordinator(
                 
                 val scoresResult = try {
                     json.decodeFromString<AnalysisResult>(metricsResponse.trim().removeSurrounding("```json", "```"))
-                } catch (e: Exception) { updatedResultWithClaims }
+                } catch (e: Exception) {
+                    Logger.e("AnalysisCoordinator", "Text Metrics parse failed: ${e.message} | raw: ${metricsResponse.takeLast(500)}")
+                    updatedResultWithClaims
+                }
 
                 val updatedResultWithScores = updatedResultWithClaims.copy(
                     objectivityScore = scoresResult.objectivityScore,
@@ -149,13 +157,35 @@ class AnalysisCoordinator(
                 currentResult = verifiedResult
                 _state.value = InferenceState.Complete(verifiedResult)
 
+                // STAGE 5: Socratic Bridge
+                Logger.i("AnalysisCoordinator", "Initiating Socratic Bridge...")
+                val socraticPrompt = SocraticStage.buildPrompt()
+                var socraticResponse = ""
+                inferenceService.execute(InferenceCommand.Chat(socraticPrompt)).collect { token ->
+                    socraticResponse += token
+                }
+                
+                val socraticData = try {
+                    json.decodeFromString<AnalysisResult>(socraticResponse.trim().removeSurrounding("```json", "```"))
+                } catch (e: Exception) {
+                    Logger.e("AnalysisCoordinator", "Socratic parse failed: ${e.message}")
+                    verifiedResult
+                }
+
+                val finalResult = verifiedResult.copy(
+                    socraticQuestions = socraticData.socraticQuestions
+                )
+                
+                currentResult = finalResult
+                _state.value = InferenceState.Complete(finalResult)
+
                 // Persist
                 repository.saveAnalysis(
                     SavedAnalysis(
                         id = Clock.System.now().toEpochMilliseconds().toString(),
                         timestamp = Clock.System.now().toEpochMilliseconds(),
                         originalArticleText = article,
-                        analysisResult = verifiedResult
+                        analysisResult = finalResult
                     )
                 )
 
@@ -182,22 +212,55 @@ class AnalysisCoordinator(
     }
 
     /**
-     * Starts the multimodal image analysis.
+     * Starts image analysis with **Cactus-Style Intelligent Routing**.
+     * 
+     * To optimize for mobile efficiency (latency and battery), the coordinator first performs 
+     * a lightweight text density scan. 
+     * 
+     * - **High Text Density (>= 20 words)**: Routes to a high-fidelity native OCR pipeline (ML Kit).
+     * - **Low Text Density / Visual Content**: Falls back to a deep multimodal vision path (Gemma 4).
+     * 
+     * This intelligent routing ensures the most efficient use of device resources while 
+     * maintaining high analytical accuracy.
      */
-    fun startImageAnalysis(imageBytes: ByteArray, description: String = "Analyze this image for logical fallacies or bias.") {
-        currentArticle = "[Image Analysis]"
-        reset("Transcribing image text...")
+    fun startImageAnalysis(imageBytes: ByteArray) {
+        analysisJob?.cancel()
         analysisJob = scope.launch {
+            _state.value = InferenceState.Thinking("Scanning image for text...")
+            
+            // Phase 1: OCR-First (ML Kit)
+            val extractedText = transcriber?.transcribe(imageBytes)
+            val words = extractedText?.trim()?.split(Regex("\\s+"))?.filter { it.isNotBlank() } ?: emptyList()
+            val wordCount = words.size
+            
+            if (wordCount >= 20) {
+                Logger.d("AnalysisCoordinator", "OCR found $wordCount words. Routing to high-fidelity text pipeline.")
+                startAnalysis(extractedText!!)
+                return@launch
+            }
+            
+            if (wordCount > 0) {
+                Logger.d("AnalysisCoordinator", "OCR found only $wordCount words. Falling back to multimodal vision.")
+            } else {
+                Logger.d("AnalysisCoordinator", "No text found by OCR. Using multimodal vision.")
+            }
+
+            // Phase 2: Multimodal Fallback
+            _state.value = InferenceState.Thinking("Preparing image for AI analysis...")
+            
+            // Letterbox to 448x448 for model consistency
+            val finalBytes = resizer?.letterbox(imageBytes, 448, 448) ?: imageBytes
+
             try {
-                // STAGE 0: Multimodal Transcription (OCR)
+                // STAGE 0: Multimodal Transcription (OCR Fallback)
                 _state.value = InferenceState.Thinking("Transcribing image text...")
-                val transPrompt = ImageTranscriptionStage.buildPrompt(description)
+                val transPrompt = ImageTranscriptionStage.buildPrompt("Analyze this image for logical fallacies or bias.")
                 
                 var transResponse = ""
                 inferenceService.execute(
                     InferenceCommand.AnalyzeMultimodal(
                         type = MultimodalType.IMAGE,
-                        data = imageBytes,
+                        data = finalBytes,
                         prompt = transPrompt
                     )
                 ).collect { token ->
@@ -211,7 +274,7 @@ class AnalysisCoordinator(
                 val fullTranscript = if (!transData.fullTranscript.isNullOrBlank()) {
                     transData.fullTranscript
                 } else {
-                    "$description\n\nAI OBSERVATION: (No clear text detected in image)"
+                    "AI OBSERVATION: (No clear text detected in image)"
                 }
 
                 // STAGE 1: Summary (Executive Perception)
@@ -245,7 +308,10 @@ class AnalysisCoordinator(
 
                 val claimsData = try {
                     json.decodeFromString<AnalysisResult>(claimsResponse.trim().removeSurrounding("```json", "```"))
-                } catch (e: Exception) { initialResult }
+                } catch (e: Exception) {
+                    Logger.e("AnalysisCoordinator", "Claims parse failed: ${e.message} | raw: ${claimsResponse.takeLast(500)}")
+                    initialResult
+                }
 
                 val updatedResultWithClaims = initialResult.copy(
                     keyClaims = claimsData.keyClaims,
@@ -263,7 +329,10 @@ class AnalysisCoordinator(
                 
                 val scoresResult = try {
                     json.decodeFromString<AnalysisResult>(metricsResponse.trim().removeSurrounding("```json", "```"))
-                } catch (e: Exception) { updatedResultWithClaims }
+                } catch (e: Exception) {
+                    Logger.e("AnalysisCoordinator", "Metrics parse failed: ${e.message} | raw: ${metricsResponse.takeLast(500)}")
+                    updatedResultWithClaims
+                }
 
                 val updatedResultWithScores = updatedResultWithClaims.copy(
                     objectivityScore = scoresResult.objectivityScore,
@@ -340,7 +409,7 @@ class AnalysisCoordinator(
                     inferenceService.execute(
                         InferenceCommand.AnalyzeMultimodal(
                             type = MultimodalType.AUDIO,
-                            data = chunk.data,
+                            data = AudioProcessor.wrapInWav(chunk.data),
                             prompt = prompt,
                             isFirstTurn = true
                         )
@@ -406,7 +475,10 @@ class AnalysisCoordinator(
 
                 val claimsData = try {
                     json.decodeFromString<AnalysisResult>(claimsResponse.trim().removeSurrounding("```json", "```"))
-                } catch (e: Exception) { initialResult }
+                } catch (e: Exception) {
+                    Logger.e("AnalysisCoordinator", "Audio Claims parse failed: ${e.message} | raw: ${claimsResponse.takeLast(500)}")
+                    initialResult
+                }
 
                 val updatedResultWithClaims = initialResult.copy(
                     keyClaims = claimsData.keyClaims,
@@ -424,7 +496,10 @@ class AnalysisCoordinator(
                 
                 val scoresResult = try {
                     json.decodeFromString<AnalysisResult>(metricsResponse.trim().removeSurrounding("```json", "```"))
-                } catch (e: Exception) { updatedResultWithClaims }
+                } catch (e: Exception) {
+                    Logger.e("AnalysisCoordinator", "Audio Metrics parse failed: ${e.message} | raw: ${metricsResponse.takeLast(500)}")
+                    updatedResultWithClaims
+                }
 
                 val updatedResultWithScores = updatedResultWithClaims.copy(
                     objectivityScore = scoresResult.objectivityScore,
@@ -446,7 +521,10 @@ class AnalysisCoordinator(
 
                 val toneData = try {
                     json.decodeFromString<AnalysisResult>(toneResponse.trim().removeSurrounding("```json", "```"))
-                } catch (e: Exception) { updatedResultWithScores }
+                } catch (e: Exception) {
+                    Logger.e("AnalysisCoordinator", "Audio Tone parse failed: ${e.message} | raw: ${toneResponse.takeLast(500)}")
+                    updatedResultWithScores
+                }
 
                 val updatedResultWithTone = updatedResultWithScores.copy(
                     vocalTone = toneData.vocalTone,

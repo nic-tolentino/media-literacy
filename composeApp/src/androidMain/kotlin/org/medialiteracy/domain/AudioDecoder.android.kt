@@ -121,79 +121,58 @@ object AudioDecoder {
 
     private fun processAudioData(data: ByteArray, channels: Int): ByteArray {
         if (channels == 1) return data
-        
-        // Stereo to Mono: take first channel samples (16-bit)
-        val monoSize = data.size / channels
-        val mono = ByteArray(monoSize)
-        for (i in 0 until monoSize step 2) {
-            if (i + 1 < data.size && i + 1 < mono.size) {
-                mono[i] = data[i * channels]
-                mono[i + 1] = data[i * channels + 1]
+
+        val bytesPerSample = 2
+        val frameSize = channels * bytesPerSample
+        val frameCount = data.size / frameSize
+        val mono = ByteArray(frameCount * bytesPerSample)
+
+        for (i in 0 until frameCount) {
+            var sum = 0
+            for (ch in 0 until channels) {
+                val offset = i * frameSize + ch * bytesPerSample
+                val sample = (data[offset].toInt() and 0xff) or (data[offset + 1].toInt() shl 8)
+                sum += if (sample >= 0x8000) sample - 0x10000 else sample
             }
+            val averaged = (sum / channels).toShort()
+            mono[i * 2] = (averaged.toInt() and 0xff).toByte()
+            mono[i * 2 + 1] = (averaged.toInt() ushr 8 and 0xff).toByte()
         }
         return mono
     }
 
     fun resampleIfNecessary(data: ByteArray, sourceRate: Int): ByteArray {
         if (sourceRate == TARGET_SAMPLE_RATE) return data
-        
+
         Logger.i("AudioDecoder", "Resampling from $sourceRate to $TARGET_SAMPLE_RATE")
-        
+
         val ratio = sourceRate.toDouble() / TARGET_SAMPLE_RATE
-        val outputSize = (data.size / 2 / ratio).toInt() * 2
-        val output = ByteArray(outputSize)
-        
-        for (i in 0 until outputSize step 2) {
-            val sourceIndex = (i / 2 * ratio).toInt() * 2
-            if (sourceIndex + 1 < data.size) {
-                output[i] = data[sourceIndex]
-                output[i + 1] = data[sourceIndex + 1]
-            }
+        val outputSamples = (data.size / 2 / ratio).toInt()
+        val output = ByteArray(outputSamples * 2)
+
+        for (i in 0 until outputSamples) {
+            val srcPos = i * ratio
+            val srcIndex = srcPos.toInt()
+            val frac = srcPos - srcIndex
+
+            val s0Offset = srcIndex * 2
+            val s1Offset = (srcIndex + 1) * 2
+
+            val s0 = if (s0Offset + 1 < data.size) {
+                val raw = (data[s0Offset].toInt() and 0xff) or (data[s0Offset + 1].toInt() shl 8)
+                if (raw >= 0x8000) raw - 0x10000 else raw
+            } else 0
+
+            val s1 = if (s1Offset + 1 < data.size) {
+                val raw = (data[s1Offset].toInt() and 0xff) or (data[s1Offset + 1].toInt() shl 8)
+                if (raw >= 0x8000) raw - 0x10000 else raw
+            } else s0
+
+            val interpolated = (s0 + frac * (s1 - s0)).toInt().toShort()
+            output[i * 2] = (interpolated.toInt() and 0xff).toByte()
+            output[i * 2 + 1] = (interpolated.toInt() ushr 8 and 0xff).toByte()
         }
         return output
     }
 
-    /**
-     * Wraps raw PCM data in a standard WAV header.
-     * miniaudio (used by LiteRT-LM) needs this header to know the format.
-     */
-    fun wrapInWav(pcmData: ByteArray): ByteArray {
-        val header = ByteArray(44)
-        val dataSize = pcmData.size
-        val totalSize = 36 + dataSize
-        val byteRate = TARGET_SAMPLE_RATE * 2 // 16000 * 2 (16-bit mono)
-
-        // RIFF header
-        header[0] = 'R'.code.toByte(); header[1] = 'I'.code.toByte(); header[2] = 'F'.code.toByte(); header[3] = 'F'.code.toByte()
-        header[4] = (totalSize and 0xff).toByte()
-        header[5] = (totalSize shr 8 and 0xff).toByte()
-        header[6] = (totalSize shr 16 and 0xff).toByte()
-        header[7] = (totalSize shr 24 and 0xff).toByte()
-        header[8] = 'W'.code.toByte(); header[9] = 'A'.code.toByte(); header[10] = 'V'.code.toByte(); header[11] = 'E'.code.toByte()
-
-        // fmt chunk
-        header[12] = 'f'.code.toByte(); header[13] = 'm'.code.toByte(); header[14] = 't'.code.toByte(); header[15] = ' '.code.toByte()
-        header[16] = 16; header[17] = 0; header[18] = 0; header[19] = 0 // Subchunk1Size
-        header[20] = 1; header[21] = 0 // AudioFormat (PCM)
-        header[22] = 1; header[23] = 0 // NumChannels (Mono)
-        header[24] = (TARGET_SAMPLE_RATE and 0xff).toByte()
-        header[25] = (TARGET_SAMPLE_RATE shr 8 and 0xff).toByte()
-        header[26] = (TARGET_SAMPLE_RATE shr 16 and 0xff).toByte()
-        header[27] = (TARGET_SAMPLE_RATE shr 24 and 0xff).toByte()
-        header[28] = (byteRate and 0xff).toByte()
-        header[29] = (byteRate shr 8 and 0xff).toByte()
-        header[30] = (byteRate shr 16 and 0xff).toByte()
-        header[31] = (byteRate shr 24 and 0xff).toByte()
-        header[32] = 2; header[33] = 0 // BlockAlign
-        header[34] = 16; header[35] = 0 // BitsPerSample
-        
-        // data chunk
-        header[36] = 'd'.code.toByte(); header[37] = 'a'.code.toByte(); header[38] = 't'.code.toByte(); header[39] = 'a'.code.toByte()
-        header[40] = (dataSize and 0xff).toByte()
-        header[41] = (dataSize shr 8 and 0xff).toByte()
-        header[42] = (dataSize shr 16 and 0xff).toByte()
-        header[43] = (dataSize shr 24 and 0xff).toByte()
-
-        return header + pcmData
-    }
 }

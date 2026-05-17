@@ -33,6 +33,9 @@ actual fun rememberImagePickerLauncher(onResult: (ByteArray?) -> Unit): ImagePic
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    // For full-resolution camera capture
+    var photoUri by remember { mutableStateOf<Uri?>(null) }
+    
     val galleryLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -40,18 +43,9 @@ actual fun rememberImagePickerLauncher(onResult: (ByteArray?) -> Unit): ImagePic
             scope.launch {
                 val bytes = withContext(Dispatchers.IO) {
                     try {
-                        context.contentResolver.openInputStream(uri)?.use { input ->
-                            val bitmap = android.graphics.BitmapFactory.decodeStream(input)
-                            if (bitmap != null) {
-                                val scaled = Bitmap.createScaledBitmap(bitmap, 448, 448, true)
-                                org.medialiteracy.domain.Logger.d("MediaPicker", "Gallery: Scaled bitmap to ${scaled.width}x${scaled.height}")
-                                val stream = ByteArrayOutputStream()
-                                scaled.compress(Bitmap.CompressFormat.JPEG, 90, stream)
-                                stream.toByteArray()
-                            } else null
-                        }
+                        context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                     } catch (e: Exception) {
-                        org.medialiteracy.domain.Logger.e("MediaPicker", "Gallery processing error: ${e.message}")
+                        org.medialiteracy.domain.Logger.e("MediaPicker", "Gallery read error: ${e.message}")
                         null
                     }
                 }
@@ -61,20 +55,21 @@ actual fun rememberImagePickerLauncher(onResult: (ByteArray?) -> Unit): ImagePic
     }
 
     val cameraLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.TakePicturePreview()
-    ) { bitmap: Bitmap? ->
-        if (bitmap != null) {
-            scope.launch {
-                val bytes = withContext(Dispatchers.IO) {
-                    // Vision models often expect square images (e.g., 224x224 or 448x448)
-                    // The 180x240 thumbnail might be triggering a native patcher bug
-                    val scaled = Bitmap.createScaledBitmap(bitmap, 448, 448, true)
-                    org.medialiteracy.domain.Logger.d("MediaPicker", "Camera: Scaled bitmap to ${scaled.width}x${scaled.height}")
-                    val stream = ByteArrayOutputStream()
-                    scaled.compress(Bitmap.CompressFormat.JPEG, 90, stream)
-                    stream.toByteArray()
+        ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            photoUri?.let { uri ->
+                scope.launch {
+                    val bytes = withContext(Dispatchers.IO) {
+                        try {
+                            context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        } catch (e: Exception) {
+                            org.medialiteracy.domain.Logger.e("MediaPicker", "Camera read error: ${e.message}")
+                            null
+                        }
+                    }
+                    onResult(bytes)
                 }
-                onResult(bytes)
             }
         }
     }
@@ -83,7 +78,14 @@ actual fun rememberImagePickerLauncher(onResult: (ByteArray?) -> Unit): ImagePic
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            cameraLauncher.launch()
+            val file = File(context.cacheDir, "camera_capture_${System.currentTimeMillis()}.jpg")
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.provider",
+                file
+            )
+            photoUri = uri
+            cameraLauncher.launch(uri)
         }
     }
 
@@ -93,7 +95,14 @@ actual fun rememberImagePickerLauncher(onResult: (ByteArray?) -> Unit): ImagePic
             onCamera = { 
                 val permission = Manifest.permission.CAMERA
                 if (ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED) {
-                    cameraLauncher.launch()
+                    val file = File(context.cacheDir, "camera_capture_${System.currentTimeMillis()}.jpg")
+                    val uri = androidx.core.content.FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.provider",
+                        file
+                    )
+                    photoUri = uri
+                    cameraLauncher.launch(uri)
                 } else {
                     permissionLauncher.launch(permission)
                 }

@@ -95,6 +95,47 @@ object SampleArticles {
 
                 If you are not angry, you are not paying attention. And if you are not paying attention, do not be surprised when it is your street next.
             """.trimIndent()
+        ),
+        SampleArticle(
+            id = "miracle",
+            title = "Miracle Cure (Alice)",
+            content = """
+                ### THE ANCIENT BARK BREAKTHROUGH: WHY BIG PHARMA IS HIDING THIS 5,000-YEAR-OLD SECRET
+                
+                For centuries, the elders of the High Valleys lived to be 110 without a single day of chronic inflammation or cognitive decline. Their secret? The Silver Leaf Bark. This substance, harvested only during the lunar equinox, operates on a "bio-resonant frequency" that is 1,000 times more powerful than any lab-grown chemical. Yet, "Mainstream Medicine" refuses to acknowledge it. Why? Because you can’t patent a tree, and they can’t profit from your total wellness.
+
+                "I saw the results myself," says Martha S., a self-described 'wellness enthusiast' from Ohio. "Within 48 hours of cellular detoxification using the bark extract, my energy levels reached a vibrational state I haven't felt since my twenties. It's like my DNA was being re-tuned."
+
+                Experts—who are too afraid of losing their licenses to go on the official record—privately admit that Silver Leaf Bark can potentially neutralize almost any common ailment by aligning the body's natural pH levels. It is pure, it is natural, and it is exactly what your ancestors used before the rise of the "Chemical Industrial Complex." Don't be a sheep following the corporate herd. Reclaim your health today with the one substance the billionaires don't want you to have. Every day you wait is another day they profit from your fatigue.
+            """.trimIndent()
+        ),
+        SampleArticle(
+            id = "speech",
+            title = "Political Speech (Jeff)",
+            content = """
+                ### A CHOICE BETWEEN CHAOS AND COMMON SENSE: THE SHADOW CAMPAIGN OF THE ELITES
+                
+                My friends, we stand at a precipice. The soul of our community is under a calculated, coordinated attack. On one side, we have the hard-working families—the backbone of this nation—who just want to raise their children in safety and peace. On the other, we have the shadow-dwelling elites in their ivory towers, plotting to dismantle every tradition you hold dear. They don't just disagree with your values; they despise them. They despise *you*.
+
+                They want to flood our streets with chaos and lawlessness while they hide behind gated walls and private security. You have a binary choice: you can stand with common sense, strength, and heritage, or you can surrender to the weak-kneed radicals who want to see our flag in the dirt and our history erased. 
+
+                These so-called "experts" with their fake degrees and condescending attitudes are laughing at you in their cocktail parties. They think you're too small, too "uneducated" to see their plan. But we see it. It’s time to show them that we won't be bullied or lectured to by the enemies of our way of life. If we don't act now, there will be nothing left to save. It’s us or them.
+            """.trimIndent()
+        ),
+        SampleArticle(
+            id = "environment",
+            title = "Ocean Research (Ara)",
+            content = """
+                ### THE OCEAN’S THERMOSTAT: NEW DATA ON PHYTOPLANKTON AND CARBON SEQUESTRATION
+                
+                Recent longitudinal studies published in the *Journal of Marine Geoscience* suggest a significant, though complex, correlation between phytoplankton density and atmospheric carbon sequestration. Over a 12-year monitoring period, a multi-national team of researchers observed three distinct sectors of the North Atlantic, utilizing a combination of high-resolution satellite telemetry and direct robotic water sampling.
+
+                The primary data set indicates that while rising surface water temperatures have led to a 4.2% decline in traditional phytoplankton colonies in sub-tropical zones, more resilient strains—specifically *C. huxleyi*—are expanding their range toward the Arctic Circle. This shift suggests a "biological compensation" mechanism, where the total biomass may remain stable even as local biodiversity fluctuates.
+
+                "These findings provide a nuanced view of oceanic resilience," notes Dr. Elena Vance, lead author of the study. "However, it is critical to observe that this compensation has limits. While carbon uptake remains high in the short term, the long-term impact on the secondary food chain remains an area of significant uncertainty."
+
+                The report explicitly states that while these biological carbon sinks offer a potential buffer against rising CO2 levels, they are not a singular solution to global climate shifts. The methodology section highlights that variations in oceanic acidity (pH levels) and salinity were not fully accounted for in the initial three years of the study, calling for further peer-reviewed research to refine the existing climate models. The study concludes that while the "Ocean's Thermostat" is functioning, its structural integrity depends on a delicate balance of chemical and thermal variables.
+            """.trimIndent()
         )
     )
 }

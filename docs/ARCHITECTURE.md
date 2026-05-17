@@ -1,6 +1,31 @@
-# Gemma 4: Media Literacy Engine Architecture
+# News Decoder: Architecture 🛰️🧠
 
-This document outlines the high-level architecture of the Media Literacy Engine, preserving the "why" behind the technical implementation for future developers and AI models.
+This document outlines the high-level architecture of the News Decoder engine, preserving the "why" behind the technical implementation.
+
+## 🗺️ System Overview
+
+```mermaid
+graph TD
+    UI[Compose UI / Voyager] -->|Trigger| AC[AnalysisCoordinator]
+    
+    subgraph "Cactus Intelligent Routing"
+        AC -->|Image Data| IT[ImageTranscriber / ML Kit]
+        IT -->|Low Text Density| MM[Multimodal Vision Path]
+        IT -->|High Text Density| OCR[Native OCR Path]
+    end
+
+    subgraph "Agentic Inference Engine"
+        MM --> |Gemma 4| IS[InferenceService / LiteRT]
+        OCR --> |Gemma 4| IS
+        IS --> |Stream| S1[Stage 1: Perception]
+        S1 --> |Stream| S2[Stage 2: Extraction]
+        S2 --> |Stream| S3[Stage 3: Metrication]
+        S3 --> |Stream| S4[Stage 4: Socratic Bridge]
+    end
+
+    S4 -->|JSON Result| Repository[AnalysisRepository]
+    Repository -->|StateFlow| UI
+```
 
 ## 1. Core Architectural Patterns
 

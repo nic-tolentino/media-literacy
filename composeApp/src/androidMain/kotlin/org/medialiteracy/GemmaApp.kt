@@ -24,7 +24,9 @@ class GemmaApp : Application() {
         val modelRepository = PlatformModelRepository()
         val inferenceService = AndroidInferenceService(engine, modelRepository, appScope, this)
         val curriculumRepository = CurriculumRepository()
-        val analysisCoordinator = AnalysisCoordinator(inferenceService, repository, appScope)
+        val transcriber = MlKitImageTranscriber()
+        val resizer = AndroidImageResizer()
+        val analysisCoordinator = AnalysisCoordinator(inferenceService, repository, appScope, transcriber, resizer)
         ServiceRegistry.init(inferenceService, analysisCoordinator, curriculumRepository)
         
         DeviceCapabilityChecker.init(this)

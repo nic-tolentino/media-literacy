@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AudioFile
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,13 +30,17 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import org.medialiteracy.domain.ServiceRegistry
 import org.medialiteracy.ui.rememberAudioPickerLauncher
 
+/**
+ * Screen to select audio for analysis. 
+ * Per Phase 1.2 strategy, we focus on gallery/file selection for the MVP to ensure 
+ * maximum quality and stability during the hackathon demo.
+ */
 class AudioPickerScreen : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         val coordinator = ServiceRegistry.analysisCoordinator
-        var isRecording by remember { mutableStateOf(false) }
 
         var isProcessing by remember { mutableStateOf(false) }
         val launcher = rememberAudioPickerLauncher(
@@ -56,7 +61,7 @@ class AudioPickerScreen : Screen {
                     color = MaterialTheme.colorScheme.surface
                 ) {
                     TopAppBar(
-                        title = { AppBarTitle("Record Audio") },
+                        title = { AppBarTitle("Analyze Audio") },
                         navigationIcon = {
                             IconButton(onClick = { navigator.pop() }) {
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
@@ -75,26 +80,20 @@ class AudioPickerScreen : Screen {
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // Focus on File Selection for MVP
                 Surface(
-                    onClick = { 
-                        if (isRecording) {
-                            launcher.stopRecording()
-                        } else {
-                            launcher.startRecording()
-                        }
-                        isRecording = !isRecording 
-                    },
+                    onClick = { launcher.launchGallery() },
                     modifier = Modifier.size(160.dp),
-                    shape = CircleShape,
-                    color = if (isRecording) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                    border = BorderStroke(2.dp, if (isRecording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outlineVariant)
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            Icons.Default.Mic, 
-                            contentDescription = "Record",
+                            Icons.Default.AudioFile, 
+                            contentDescription = "Select File",
                             modifier = Modifier.size(64.dp),
-                            tint = if (isRecording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary
+                            tint = MaterialTheme.colorScheme.secondary
                         )
                     }
                 }
@@ -102,16 +101,16 @@ class AudioPickerScreen : Screen {
                 Spacer(modifier = Modifier.height(32.dp))
                 
                 Text(
-                    if (isRecording) "Recording... Tap to stop" else "Record speech or broadcast",
+                    "Select an audio file for analysis",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (isRecording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 Text(
-                    "Analyze live audio for logical depth and tone.",
+                    "Gemma will decode the speech and analyze its logical structure, evidence quality, and vocal tone.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -128,9 +127,9 @@ class AudioPickerScreen : Screen {
                         contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
-                    Icon(Icons.Default.AudioFile, null, tint = MaterialTheme.colorScheme.onPrimary)
+                    Icon(Icons.Default.GraphicEq, null, tint = MaterialTheme.colorScheme.onPrimary)
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("Select Audio File", color = MaterialTheme.colorScheme.onPrimary)
+                    Text("Browse Media Library", color = MaterialTheme.colorScheme.onPrimary)
                 }
             }
 

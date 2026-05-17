@@ -34,6 +34,9 @@ kotlin {
                 implementation(libs.androidx.core.splashscreen)
                 // HACKATHON REQUIREMENT: Use the LiteRT-LM (AI Edge) SDK
                 implementation("com.google.ai.edge.litertlm:litertlm-android:0.10.2")
+                // ML Kit for High-Fidelity OCR (MVP)
+                implementation("com.google.mlkit:text-recognition:16.0.0")
+                implementation(libs.kotlinx.coroutines.play.services)
             }
         }
         commonMain.dependencies {

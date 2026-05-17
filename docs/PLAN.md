@@ -1,27 +1,24 @@
-# News Decoder: High-Level Project Plan
+# News Decoder: Project Implementation Status 🛰️🧠
 
 ## 1. Strategic Alignment (Kaggle Hackathon Tracks)
-* **Safety & Trust**: Pioneer explainable AI that unmasks logical fallacies and manipulation.
-* **Digital Equity**: Provide high-end news analysis for users in low-connectivity environments.
+* **Safety & Trust**: Pioneered explainable AI that unmasks logical fallacies and manipulation.
+* **Digital Equity**: Provides high-end news analysis for users in low-connectivity environments.
 * **Cactus/LiteRT Prizes**: Targeted for local-first mobile implementation using Google AI Edge.
 
 ## 2. Technical Architecture
-* **Model**: Gemma 4 E2B (2.3B) or E4B (4.5B). Optimized for mobile (INT4 quantization depending on device quality?).
-* **Modality**: Native Multimodal (Image OCR for newspapers, Audio for radio/speech, Text for digital news).
+* **Model**: Gemma 4 E2B-IT (LiteRT-LM). Optimized for mobile (INT4 quantization).
+* **Modality**: Native Multimodal (Image OCR-First, Audio, Text).
 * **Reasoning**: Gemma 4 Thinking Mode (Native Chain-of-Thought) to expose the "logic" behind fallacy detection.
-* **Engine**: MediaPipe LLM Inference API (Primary baseline to guarantee cross-device compatibility). AICore is treated strictly as an optional, flagship-only enhancement path to prevent hardware lock-in.
-* **Privacy**: 100% Offline; zero data leakage. Uses a statically embedded lightweight JSON/SQLite file containing concrete fallacy definitions and examples (eschewing complex Local RAG).
+* **Engine**: **LiteRT-LM Android SDK** for optimized on-device inference.
+* **Privacy**: 100% Offline; zero data leakage.
 
-## 3. Feature Roadmap
-* **[P0] Multimodal Intake:** Capture photos of headlines, record 30s audio clips, or paste text.
-* **[P0] Logical Fallacy Detector:** Identify 10-12 well-executed fallacies (Ad Hominem, Strawman, etc.) using Thinking Mode (Quality over Quantity).
-* **[P0] "Steel-man" Generator:** Local AI generates the strongest arguments for and against an article to build a balanced view. (Elevated as a unique standout feature).
-* **[P0] Summary:** Provide a concise summary of the news article, highlighting the main points and key arguments.
-* **[P0] Argument Analysis:** Provides insights into the article's structure, outputting a concrete, predefined schema (e.g., Tone: 1-5 scale, Evidence Quality: 0-100%).
-* **[P0] Multi-Language UI (i18n):** Native user interface support for multiple languages, starting with English and Spanish to ensure full accessibility.
-* **[P1] Interactive Chat Mode:** Have a two-way discussion with the local AI about the article to ask questions, request further explanations, clarify terminology, or dig deeper into historical context.
-* **[P1] Learning Hub:** A simple "spot the fallacy" interactive quiz to build media literacy (standout educational demo moment).
-* **[P2] Translation/ESL Context:** Handled strictly as an LLM prompt variation rather than an independent software module to prevent scope creep.
+## 3. Feature Roadmap (Implementation Status)
+* **[✅] Multimodal Intake:** Full-resolution Photo capture (FileProvider), Audio chunking (WAV), and Text pasting.
+* **[✅] Cactus Intelligent Routing:** Intelligent path selection between native OCR (ML Kit) and Multimodal Fallback.
+* **[✅] Truth Radar:** 4-axis visualization (Logic, Evidence, Credibility, Objectivity) via structured JSON extraction.
+* **[✅] Socratic Bridge:** Agentic loop that prompts users with critical thinking questions before revealing final results.
+* **[✅] Learning Hub:** Integration with a local `CurriculumRepository` for fallacy education.
+* **[✅] Logic Transparency:** Real-time streaming of Gemma 4's "Chain of Thought" (Thinking block).
 
 ## 4. Risk & Effort Assessment
 

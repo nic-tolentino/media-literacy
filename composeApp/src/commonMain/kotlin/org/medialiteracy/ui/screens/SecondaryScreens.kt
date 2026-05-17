@@ -70,12 +70,6 @@ class SettingsScreen : Screen {
                 ) {
                     CenterAlignedTopAppBar(
                         title = { AppBarTitle("Settings") },
-                        navigationIcon = {
-                            val navigator = LocalRootNavigator.current
-                            IconButton(onClick = { navigator?.pop() }) {
-                                Icon(Icons.Default.ArrowBack, "Back")
-                            }
-                        },
                         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                             containerColor = Color.Transparent
                         )

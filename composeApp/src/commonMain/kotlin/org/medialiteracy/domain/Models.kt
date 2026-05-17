@@ -44,6 +44,7 @@ data class AnalysisResult(
     val isVocalToneLoading: Boolean = false,
     val vocalTone: String? = null,
     val keyClaims: List<String> = emptyList(),
+    val socraticQuestions: List<String> = emptyList(),
     val fullTranscript: String? = null
 ) : SharedSerializable
 

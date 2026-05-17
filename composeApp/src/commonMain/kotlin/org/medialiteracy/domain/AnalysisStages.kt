@@ -244,6 +244,26 @@ object AudioAnalysisStage {
 }
 
 /**
+ * Stage 5: Socratic Bridge
+ * Generates thought-provoking questions to encourage critical thinking.
+ */
+object SocraticStage {
+    fun buildPrompt(): String = """
+        Based on the previous analysis of claims and evidence, generate exactly 3 thought-provoking questions for the user.
+        
+        TASK:
+        These questions should encourage the user to look deeper into the "hidden agenda" or "framing" of the article.
+        - Do not give the answer.
+        - Encourage self-reflection.
+        
+        FORMATTING: Return ONLY a valid JSON object matching this schema:
+        {
+          "socraticQuestions": ["Question 1?", "Question 2?", "Question 3?"]
+        }
+    """.trimIndent()
+}
+
+/**
  * Pure logic for the Final Synthesis stage.
  */
 object SynthesisStage {

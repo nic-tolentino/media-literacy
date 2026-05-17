@@ -240,7 +240,7 @@ class AndroidLlmEngine : LlmEngine {
                 val wrapped = if (it.size > 4 && it[0] == 'R'.code.toByte() && it[1] == 'I'.code.toByte() && it[2] == 'F'.code.toByte() && it[3] == 'F'.code.toByte()) {
                     it
                 } else {
-                    AudioDecoder.wrapInWav(it)
+                    AudioProcessor.wrapInWav(it)
                 }
                 contentList.add(Content.AudioBytes(wrapped)) 
             }
