@@ -39,4 +39,9 @@ actual object DeviceCapabilityChecker {
             ModelVariant.E2B
         }
     }
+
+    actual fun isDebugBuild(): Boolean {
+        if (!::appContext.isInitialized) return false
+        return (appContext.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    }
 }

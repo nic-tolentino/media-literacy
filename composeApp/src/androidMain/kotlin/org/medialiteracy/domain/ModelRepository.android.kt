@@ -28,6 +28,7 @@ class AndroidModelRepository(
     private val _installedVariant = MutableStateFlow<ModelVariant?>(null)
     override val installedVariant: StateFlow<ModelVariant?> = _installedVariant.asStateFlow()
 
+    private val prefs = context.getSharedPreferences("model_download_prefs", Context.MODE_PRIVATE)
     private var activeDownloadId: Long = -1
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var pollingJob: Job? = null
@@ -35,7 +36,43 @@ class AndroidModelRepository(
     init {
         scope.launch {
             _installedVariant.value = installedVariantValue()
+            
+            // Check for pre-existing active downloads
+            val storedId = prefs.getLong("active_download_id", -1L)
+            val storedVariantStr = prefs.getString("pending_variant", null)
+            if (storedId != -1L && storedVariantStr != null) {
+                val variant = try {
+                    ModelVariant.valueOf(storedVariantStr)
+                } catch (e: Exception) {
+                    null
+                }
+                if (variant != null) {
+                    val query = DownloadManager.Query().setFilterById(storedId)
+                    downloadManager.query(query).use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                            if (status == DownloadManager.STATUS_PENDING || 
+                                status == DownloadManager.STATUS_RUNNING || 
+                                status == DownloadManager.STATUS_PAUSED) {
+                                activeDownloadId = storedId
+                                pendingVariant = variant
+                                startPollingProgress()
+                            } else {
+                                clearStoredDownload()
+                            }
+                        } else {
+                            clearStoredDownload()
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    private fun clearStoredDownload() {
+        prefs.edit().remove("active_download_id").remove("pending_variant").apply()
+        activeDownloadId = -1
+        pendingVariant = null
     }
 
     // Track the variant currently being downloaded
@@ -48,19 +85,22 @@ class AndroidModelRepository(
         }
 
         pendingVariant = variant
-        // DownloadManager cannot write to internal filesDir.
-        // We download to external staging area first, then move it in verifyIntegrity.
         val stagingFile = File(context.getExternalFilesDir(null), variant.fileName + ".part")
-        
+        val sizeDesc = if (variant == ModelVariant.TEST) "< 1 MB" else "${variant.approximateSizeGb} GB"
         val request = DownloadManager.Request(Uri.parse(ModelConfig.urlForVariant(variant)))
             .setTitle("Downloading ${variant.displayName}")
-            .setDescription("${variant.approximateSizeGb} GB — required for offline AI analysis")
+            .setDescription("$sizeDesc — required for offline AI analysis")
             .setDestinationUri(Uri.fromFile(stagingFile))
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
-            .setAllowedOverMetered(false)
-            .setAllowedOverRoaming(false)
+            .setAllowedOverMetered(true)
+            .setAllowedOverRoaming(true)
 
         activeDownloadId = downloadManager.enqueue(request)
+        prefs.edit()
+            .putLong("active_download_id", activeDownloadId)
+            .putString("pending_variant", variant.name)
+            .apply()
+        
         startPollingProgress()
     }
 
@@ -77,6 +117,9 @@ class AndroidModelRepository(
                         val progress = if (totalBytes > 0) bytesDownloaded.toFloat() / totalBytes else 0f
 
                         when (status) {
+                            DownloadManager.STATUS_PENDING -> {
+                                _downloadState.value = DownloadState.Downloading(0f, 0, totalBytes.coerceAtLeast(0))
+                            }
                             DownloadManager.STATUS_RUNNING -> {
                                 _downloadState.value = DownloadState.Downloading(progress, bytesDownloaded, totalBytes)
                             }
@@ -86,6 +129,7 @@ class AndroidModelRepository(
                             DownloadManager.STATUS_SUCCESSFUL -> {
                                 _downloadState.value = DownloadState.Verifying
                                 val variant = pendingVariant
+                                clearStoredDownload()
                                 if (variant == null) {
                                     _downloadState.value = DownloadState.Failed("Download restarted after process death — please retry", true)
                                 } else {
@@ -96,6 +140,7 @@ class AndroidModelRepository(
                             DownloadManager.STATUS_FAILED -> {
                                 val reason = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))
                                 _downloadState.value = DownloadState.Failed("Download failed: error code $reason", true)
+                                clearStoredDownload()
                                 return@launch // Exit loop
                             }
                         }
@@ -133,7 +178,25 @@ class AndroidModelRepository(
                 }
 
                 if (stagingFile.exists()) {
-                    stagingFile.renameTo(finalFile)
+                    val success = stagingFile.renameTo(finalFile)
+                    if (!success) {
+                        Logger.i("ModelRepository", "renameTo failed, falling back to copy/delete")
+                        try {
+                            stagingFile.inputStream().use { input ->
+                                finalFile.outputStream().use { output ->
+                                    input.copyTo(output)
+                                }
+                            }
+                            stagingFile.delete()
+                        } catch (e: Exception) {
+                            Logger.e("ModelRepository", "Fallback copy failed: ${e.message}")
+                            throw Exception("Failed to move model file to internal storage: ${e.message}")
+                        }
+                    }
+                }
+
+                if (!finalFile.exists() || finalFile.length() == 0L) {
+                    throw IllegalStateException("Model file was not successfully moved to internal storage.")
                 }
 
                 // Save verified state to persistent settings
@@ -151,10 +214,10 @@ class AndroidModelRepository(
     override fun cancelDownload() {
         if (activeDownloadId != -1L) {
             downloadManager.remove(activeDownloadId)
-            activeDownloadId = -1
-            pollingJob?.cancel()
-            _downloadState.value = DownloadState.Idle
         }
+        clearStoredDownload()
+        pollingJob?.cancel()
+        _downloadState.value = DownloadState.Idle
     }
 
     override fun pauseDownload() {

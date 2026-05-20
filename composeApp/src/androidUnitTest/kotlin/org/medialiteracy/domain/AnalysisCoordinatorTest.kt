@@ -24,7 +24,7 @@ class AnalysisCoordinatorTest {
     @Test
     fun testArticleLengthEnforcement() = runTest {
         val engine = MockLlmEngine()
-        val service = AndroidInferenceService(engine, backgroundScope, "mockContext", StandardTestDispatcher(testScheduler))
+        val service = AndroidInferenceService(engine, FakeModelRepository(), backgroundScope, "mockContext", StandardTestDispatcher(testScheduler))
         val coordinator = AnalysisCoordinator(service, MockRepository(), backgroundScope)
         
         val longArticle = "A".repeat(8001)
@@ -40,14 +40,20 @@ class AnalysisCoordinatorTest {
         val engine = MockLlmEngine()
         // Stage 1 Summary
         engine.enqueueTokens(listOf("""{"summary": "Stage 1 Summary", "objectivityScore": 100, "logicScore": 100, "evidenceQuality": 100, "credibilityScore": 100, "credibility": "G", "primaryStrength": "S", "observationArea": "A"}"""))
-        // Stage 2 Fallacies
+        // Stage 2 Claims
+        engine.enqueueTokens(listOf("""{"keyClaims": ["Claim 1"]}"""))
+        // Stage 3 Metrics
+        engine.enqueueTokens(listOf("""{"objectivityScore": 100, "logicScore": 100, "evidenceQuality": 100, "credibilityScore": 100, "credibility": "G"}"""))
+        // Stage 4 Fallacies
         engine.enqueueTokens(listOf("#### 1. FallacyName\n* **Instance:** Quote\n* **Analysis:** Deconstruction"))
+        // Stage 5 Socratic
+        engine.enqueueTokens(listOf("""{"socraticQuestions": ["Question 1"]}"""))
 
         // Using a dedicated scope for the test to avoid interference
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val testScope = CoroutineScope(testDispatcher + Job())
         
-        val service = AndroidInferenceService(engine, testScope, "mockContext", testDispatcher)
+        val service = AndroidInferenceService(engine, FakeModelRepository(), testScope, "mockContext", testDispatcher)
         val repository = MockRepository()
         val coordinator = AnalysisCoordinator(service, repository, testScope)
         
@@ -70,7 +76,7 @@ class AnalysisCoordinatorTest {
     @Test
     fun testLoadResult() = runTest {
         val engine = MockLlmEngine()
-        val service = AndroidInferenceService(engine, backgroundScope, "mockContext", StandardTestDispatcher(testScheduler))
+        val service = AndroidInferenceService(engine, FakeModelRepository(), backgroundScope, "mockContext", StandardTestDispatcher(testScheduler))
         val coordinator = AnalysisCoordinator(service, MockRepository(), backgroundScope)
         
         val mockResult = AnalysisResult(
@@ -103,7 +109,7 @@ class AnalysisCoordinatorTest {
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val testScope = CoroutineScope(testDispatcher + Job())
         
-        val service = AndroidInferenceService(engine, testScope, "mockContext", testDispatcher)
+        val service = AndroidInferenceService(engine, FakeModelRepository(), testScope, "mockContext", testDispatcher)
         val coordinator = AnalysisCoordinator(service, repository = MockRepository(), scope = testScope)
         
         assertEquals(InferenceState.Idle, coordinator.state.value)
@@ -138,7 +144,7 @@ class AnalysisCoordinatorTest {
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val testScope = CoroutineScope(testDispatcher + Job())
         
-        val service = AndroidInferenceService(engine, testScope, "mockContext", testDispatcher)
+        val service = AndroidInferenceService(engine, FakeModelRepository(), testScope, "mockContext", testDispatcher)
         val repository = MockRepository()
         val coordinator = AnalysisCoordinator(service, repository, testScope)
         
@@ -165,16 +171,25 @@ class AnalysisCoordinatorTest {
     @Test
     fun testImageAnalysisPipeline() = runTest {
         val engine = MockLlmEngine()
+        // Stage 0 Multimodal Transcription
+        engine.enqueueTokens(listOf("""{"fullTranscript": "Image Analysis Result"}"""))
+        // Stage 1 Summary
         engine.enqueueTokens(listOf("""{"summary": "Image Analysis Result", "objectivityScore": 85, "logicScore": 85, "evidenceQuality": 85, "credibilityScore": 85, "credibility": "Trustworthy", "primaryStrength": "Visual Evidence", "observationArea": "None"}"""))
+        // Stage 2 Claims
+        engine.enqueueTokens(listOf("""{"keyClaims": ["Claim 1"]}"""))
+        // Stage 3 Metrics
+        engine.enqueueTokens(listOf("""{"objectivityScore": 85, "logicScore": 85, "evidenceQuality": 85, "credibilityScore": 85, "credibility": "Trustworthy"}"""))
+        // Stage 4 Fallacies
+        engine.enqueueTokens(listOf("#### 1. FallacyName\n* **Instance:** Quote\n* **Analysis:** Deconstruction"))
 
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val testScope = CoroutineScope(testDispatcher + Job())
         
-        val service = AndroidInferenceService(engine, testScope, "mockContext", testDispatcher)
+        val service = AndroidInferenceService(engine, FakeModelRepository(), testScope, "mockContext", testDispatcher)
         val repository = MockRepository()
         val coordinator = AnalysisCoordinator(service, repository, testScope)
         
-        coordinator.startImageAnalysis(ByteArray(100), "Description")
+        coordinator.startImageAnalysis(ByteArray(100))
         
         advanceUntilIdle()
         

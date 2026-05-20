@@ -68,13 +68,18 @@ class GemmaOrchestrator : ScreenModel {
     ) {
         screenModelScope.launch {
             var lastCleaned = ""
-            coordinator.sendChat(userMessage).collect { fullResponse ->
-                // Clean internal thinking tags for UI
-                lastCleaned = fullResponse.replace(Regex("<\\|think\\|>[\\s\\S]*?\\*?\\/\\|think\\|>"), "").trim()
-                onUpdate(lastCleaned)
+            try {
+                coordinator.sendChat(userMessage).collect { fullResponse ->
+                    // Clean internal thinking tags for UI
+                    lastCleaned = fullResponse.replace(Regex("<\\|think\\|>[\\s\\S]*?\\*?\\/\\|think\\|>"), "").trim()
+                    onUpdate(lastCleaned)
+                }
+                onComplete(lastCleaned)
+            } catch (e: Exception) {
+                val errMsg = "Failed to generate response. ${e.message ?: "Please check if your model is active."}"
+                onUpdate(errMsg)
+                onComplete(errMsg)
             }
-            // Return the final cleaned response text to the completion handler
-            onComplete(lastCleaned)
         }
     }
 

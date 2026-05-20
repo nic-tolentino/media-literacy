@@ -41,4 +41,12 @@ class ModelVariantTest {
             assertTrue(variant.displayName.isNotBlank(), "Empty displayName for $variant")
         }
     }
+
+    @Test
+    fun testIsDebugBuildReturnsWithoutThrowing() {
+        // Ensure calling this on common platform does not crash or throw uninitialized exceptions
+        val isDebug = DeviceCapabilityChecker.isDebugBuild()
+        // It should default to false in JVM/Unit test environments where context is uninitialized
+        assertEquals(false, isDebug)
+    }
 }

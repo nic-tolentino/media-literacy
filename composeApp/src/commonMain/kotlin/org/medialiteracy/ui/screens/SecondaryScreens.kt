@@ -106,10 +106,35 @@ class SettingsScreen : Screen {
                             Spacer(modifier = Modifier.width(16.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(installedVariant?.displayName ?: "", fontWeight = FontWeight.Bold)
-                                Text("${installedVariant?.approximateSizeGb} GB · Active", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                val sizeLabel = if (installedVariant == org.medialiteracy.domain.ModelVariant.TEST) "< 1 MB" else "${installedVariant?.approximateSizeGb} GB"
+                                Text("$sizeLabel · Active", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             IconButton(onClick = { showDeleteDialog = true }) {
                                 Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+
+                    if (installedVariant == org.medialiteracy.domain.ModelVariant.TEST) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { showDownloadSheet = true }
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("📥 Get Real AI Model", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.primary)
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    "You are running in Test Connection mode with mock responses. Download E2B or E4B to analyze real news articles.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     }
@@ -158,7 +183,10 @@ class SettingsScreen : Screen {
                     AlertDialog(
                         onDismissRequest = { showDeleteDialog = false },
                         title = { Text("Delete model file?") },
-                        text = { Text("This removes the ${installedVariant?.approximateSizeGb} GB ${installedVariant?.displayName} model from your device. Analysis features will be unavailable until you re-download a model.") },
+                        text = { 
+                            val sizeText = if (installedVariant == org.medialiteracy.domain.ModelVariant.TEST) "< 1 MB" else "${installedVariant?.approximateSizeGb} GB"
+                            Text("This removes the $sizeText ${installedVariant?.displayName} model from your device. Analysis features will be unavailable until you re-download a model.") 
+                        },
                         confirmButton = {
                             TextButton(
                                 onClick = {

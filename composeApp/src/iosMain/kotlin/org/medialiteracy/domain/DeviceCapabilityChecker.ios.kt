@@ -13,4 +13,8 @@ actual object DeviceCapabilityChecker {
             ModelVariant.E2B
         }
     }
+
+    actual fun isDebugBuild(): Boolean {
+        return false
+    }
 }

@@ -109,6 +109,17 @@ fun ModelDownloadSheet(
                             onClick = { selectedVariant = ModelVariant.E2B }
                         )
                         
+                        if (DeviceCapabilityChecker.isDebugBuild()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            
+                            VariantOption(
+                                variant = ModelVariant.TEST,
+                                isSelected = selectedVariant == ModelVariant.TEST,
+                                isRecommended = false,
+                                onClick = { selectedVariant = ModelVariant.TEST }
+                            )
+                        }
+                        
                         Spacer(modifier = Modifier.height(24.dp))
                         
                         Row(
@@ -156,7 +167,7 @@ fun ModelDownloadSheet(
                         }
                         
                         PrimaryButton(
-                            text = "Download ${selectedVariant.approximateSizeGb} GB",
+                            text = "Download " + if (selectedVariant == ModelVariant.TEST) "< 1 MB" else "${selectedVariant.approximateSizeGb} GB",
                             onClick = { orchestrator.startModelDownload(selectedVariant) },
                             enabled = orchestrator.canStartDownload(selectedVariant, freeSpaceGb),
                             modifier = Modifier.fillMaxWidth().height(56.dp)
@@ -312,14 +323,18 @@ fun VariantOption(
                 }
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    if (variant == ModelVariant.E4B) "Higher accuracy & reasoning" else "Faster analysis, uses less storage",
+                    when (variant) {
+                        ModelVariant.E4B -> "Higher accuracy & reasoning"
+                        ModelVariant.E2B -> "Faster analysis, uses less storage"
+                        ModelVariant.TEST -> "Verifies download service, takes <1 second"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                "${variant.approximateSizeGb} GB", 
+                if (variant == ModelVariant.TEST) "< 1 MB" else "${variant.approximateSizeGb} GB", 
                 style = MaterialTheme.typography.bodyMedium, 
                 fontWeight = FontWeight.ExtraBold,
                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface

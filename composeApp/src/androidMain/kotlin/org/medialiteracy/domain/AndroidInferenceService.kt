@@ -37,8 +37,12 @@ class AndroidInferenceService(
     override val metrics: StateFlow<InferenceMetrics> = _metrics.asStateFlow()
 
     override suspend fun resetEngine() {
-        // Queue a reset command to ensure the engine re-initializes on the next turn
-        execute(InferenceCommand.Reset).collect { /* wait for completion */ }
+        try {
+            // Queue a reset command to ensure the engine re-initializes on the next turn
+            execute(InferenceCommand.Reset).collect { /* wait for completion */ }
+        } catch (e: Exception) {
+            Logger.e("InferenceService", "Failed to reset engine: ${e.message}")
+        }
     }
 
     private var activeGenerationJob: Job? = null
@@ -97,10 +101,22 @@ class AndroidInferenceService(
                 is InferenceCommand.Analyze -> handleAnalyze(command, tokens)
                 is InferenceCommand.Chat -> handleChat(command, tokens)
                 is InferenceCommand.AnalyzeMultimodal -> handleMultimodal(command, tokens)
-                is InferenceCommand.CancelCurrent -> handleCancel()
-                is InferenceCommand.ReleaseResources -> handleRelease()
-                is InferenceCommand.Reset -> handleReset()
-                is InferenceCommand.Prime -> handlePrime(command)
+                is InferenceCommand.CancelCurrent -> {
+                    handleCancel()
+                    tokens?.close()
+                }
+                is InferenceCommand.ReleaseResources -> {
+                    handleRelease()
+                    tokens?.close()
+                }
+                is InferenceCommand.Reset -> {
+                    handleReset()
+                    tokens?.close()
+                }
+                is InferenceCommand.Prime -> {
+                    handlePrime(command)
+                    tokens?.close()
+                }
             }
         } catch (e: Exception) {
             Logger.e("InferenceService", "Critical error in actor loop: ${e.message}")
@@ -214,6 +230,7 @@ class AndroidInferenceService(
         if (estimatedTokensUsed > tokenBudgetLimit) {
             Logger.w("InferenceService", "Token budget exceeded ($estimatedTokensUsed). Forcing reset.")
             handleReset()
+            tokens?.close()
             return // Stop processing this command
         }
 
@@ -306,6 +323,7 @@ class AndroidInferenceService(
     private fun handleInferenceError(e: Exception, tokens: kotlinx.coroutines.channels.SendChannel<String>?) {
         if (e is CancellationException) {
             Logger.d("InferenceService", "Generation cancelled.")
+            tokens?.close(e)
         } else {
             Logger.e("InferenceService", "Inference error: ${e.message}")
             _state.value = EngineInternalState.Error

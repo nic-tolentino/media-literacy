@@ -50,6 +50,8 @@ class AndroidLlmEngine : LlmEngine {
         }
     }
 
+    private var isMockMode = false
+
     private val initMutex = kotlinx.coroutines.sync.Mutex()
 
     /**
@@ -60,7 +62,7 @@ class AndroidLlmEngine : LlmEngine {
      */
     override suspend fun initialize(context: Any) {
         initMutex.withLock {
-            if (engine != null) return
+            if (engine != null || isMockMode) return
             val appContext = context as Context
             
             // Comprehensive search for the model file
@@ -74,6 +76,16 @@ class AndroidLlmEngine : LlmEngine {
             )
 
             val modelFile = potentialLocations.find { it.exists() }
+            
+            if (modelFile == null) {
+                // Check if TEST variant metadata file is present
+                val testFile = File(appContext.filesDir, ModelVariant.TEST.fileName)
+                if (testFile.exists() && testFile.length() > 0) {
+                    isMockMode = true
+                    Logger.i("GemmaEngine", "Mock Mode initialized via Test Connection metadata file.")
+                    return
+                }
+            }
             
             try {
                 if (modelFile == null) {
@@ -190,6 +202,15 @@ class AndroidLlmEngine : LlmEngine {
 
     /** Stateless streaming. Creates a fresh conversation for every call. */
     override fun generateStreaming(prompt: String): Flow<String> = kotlinx.coroutines.flow.callbackFlow {
+        if (isMockMode) {
+            val response = getMockResponseForPrompt(prompt)
+            response.chunked(8).forEach { chunk ->
+                send(chunk)
+                kotlinx.coroutines.delay(30)
+            }
+            close()
+            return@callbackFlow
+        }
         val eng = engine ?: throw Exception("Engine not initialized.")
 
         closeSession()
@@ -220,6 +241,15 @@ class AndroidLlmEngine : LlmEngine {
 
     @OptIn(ExperimentalApi::class)
     override fun generateMultimodalStreaming(content: MultimodalContent, isFirstTurn: Boolean): Flow<String> = kotlinx.coroutines.flow.callbackFlow {
+        if (isMockMode) {
+            val response = getMockResponseForPrompt(content.text ?: "")
+            response.chunked(8).forEach { chunk ->
+                send(chunk)
+                kotlinx.coroutines.delay(30)
+            }
+            close()
+            return@callbackFlow
+        }
         val eng = engine ?: throw Exception("Engine not initialized.")
 
         val conversation = withContext(engineContext) {
@@ -275,6 +305,15 @@ class AndroidLlmEngine : LlmEngine {
      * @param isFirstTurn If true, resets the current conversation history.
      */
     override fun generatePersistentStreaming(prompt: String, isFirstTurn: Boolean): Flow<String> = kotlinx.coroutines.flow.callbackFlow {
+        if (isMockMode) {
+            val response = getMockResponseForPrompt(prompt)
+            response.chunked(8).forEach { chunk ->
+                send(chunk)
+                kotlinx.coroutines.delay(30)
+            }
+            close()
+            return@callbackFlow
+        }
         val eng = engine ?: throw Exception("Engine not initialized")
         
         val convo = withContext(engineContext) {
@@ -316,7 +355,7 @@ class AndroidLlmEngine : LlmEngine {
         awaitClose { /* Persist convo across flow closures */ }
     }
 
-    override fun hasActiveConversation(): Boolean = activeConversation != null
+    override fun hasActiveConversation(): Boolean = if (isMockMode) true else activeConversation != null
 
     /** Releases all native engine and conversation resources. */
     override suspend fun close() {
@@ -326,7 +365,37 @@ class AndroidLlmEngine : LlmEngine {
                 activeConversation = null
                 engine?.close()
                 engine = null
+                isMockMode = false
                 Logger.i("GemmaEngine", "Engine and session released.")
+            }
+        }
+    }
+
+    private fun getMockResponseForPrompt(prompt: String): String {
+        return when {
+            prompt.contains("fullTranscript") -> {
+                "{\"fullTranscript\": \"[Test Connection Transcription]: This is a test scan image.\"}"
+            }
+            prompt.contains("summary") -> {
+                "{\"summary\": \"This is a mock connection test summary. The download pipeline is verified! Please download Gemma 4 E2B or E4B for real analysis.\"}"
+            }
+            prompt.contains("keyClaims") -> {
+                "{\"keyClaims\": [\"Connection test succeeded\", \"App is running in mock mode\", \"Gemma 4 model needs to be downloaded\"]}"
+            }
+            prompt.contains("objectivityScore") -> {
+                "{\"objectivityScore\": 100, \"logicScore\": 100, \"evidenceQuality\": 100, \"credibilityScore\": 100, \"credibility\": \"Verified\"}"
+            }
+            prompt.contains("vocalTone") -> {
+                "{\"vocalTone\": \"Overall vocal tone is positive and clear.\"}"
+            }
+            prompt.contains("type") && prompt.contains("evidence") -> {
+                "[{\"type\": \"Test Pattern\", \"evidence\": \"Connection verified\", \"description\": \"This is a test fallacy check. Your pipeline is fully functional!\"}]"
+            }
+            prompt.contains("socraticQuestions") -> {
+                "{\"socraticQuestions\": [\"Did the test download work as expected?\", \"Are you ready to download a real Gemma model?\", \"How will you deconstruct news bias?\"]}"
+            }
+            else -> {
+                "This is the Socratic Guide (Test Connection mode). Since you are running the 1 KB connection test, actual AI inference is simulated. Go back and download Gemma 4 E2B or E4B to analyze live articles."
             }
         }
     }

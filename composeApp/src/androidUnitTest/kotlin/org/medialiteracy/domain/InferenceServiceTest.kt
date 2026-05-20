@@ -13,7 +13,7 @@ class InferenceServiceTest {
     @Test
     fun testCommandSerialization() = runTest {
         val engine = MockLlmEngine()
-        val service = AndroidInferenceService(engine, backgroundScope, "mockContext", StandardTestDispatcher(testScheduler))
+        val service = AndroidInferenceService(engine, FakeModelRepository(), backgroundScope, "mockContext", StandardTestDispatcher(testScheduler))
         
         val results1 = service.execute(InferenceCommand.Chat("Hello 1")).toList()
         val results2 = service.execute(InferenceCommand.Chat("Hello 2")).toList()
@@ -28,7 +28,7 @@ class InferenceServiceTest {
     @Test
     fun testCancellation() = runTest {
         val engine = MockLlmEngine().apply { streamDelay = 100 }
-        val service = AndroidInferenceService(engine, backgroundScope, "mockContext", StandardTestDispatcher(testScheduler))
+        val service = AndroidInferenceService(engine, FakeModelRepository(), backgroundScope, "mockContext", StandardTestDispatcher(testScheduler))
         
         val results = mutableListOf<String>()
         val job = launch {
@@ -47,7 +47,7 @@ class InferenceServiceTest {
     @Test
     fun testReset() = runTest {
         val engine = MockLlmEngine()
-        val service = AndroidInferenceService(engine, backgroundScope, "mockContext", StandardTestDispatcher(testScheduler))
+        val service = AndroidInferenceService(engine, FakeModelRepository(), backgroundScope, "mockContext", StandardTestDispatcher(testScheduler))
         
         service.execute(InferenceCommand.Reset).firstOrNull()
         assertEquals(1, engine.closeCount)
@@ -57,7 +57,7 @@ class InferenceServiceTest {
     @Test
     fun testTokenBudgetEnforcement() = runTest {
         val engine = MockLlmEngine()
-        val service = AndroidInferenceService(engine, backgroundScope, "mockContext", StandardTestDispatcher(testScheduler))
+        val service = AndroidInferenceService(engine, FakeModelRepository(), backgroundScope, "mockContext", StandardTestDispatcher(testScheduler))
         
         // Exceed budget (3500 tokens). Heuristic is length / 3.5.
         engine.mockTokens = listOf("A".repeat(4000 * 4)) 
@@ -82,7 +82,7 @@ class InferenceServiceTest {
                 emit("Recovered")
             }
         }
-        val service = AndroidInferenceService(engine, backgroundScope, "mockContext", StandardTestDispatcher(testScheduler))
+        val service = AndroidInferenceService(engine, FakeModelRepository(), backgroundScope, "mockContext", StandardTestDispatcher(testScheduler))
         
         // Execute a command that crashes
         val results = mutableListOf<String>()
@@ -103,7 +103,7 @@ class InferenceServiceTest {
     @Test
     fun testMultimodalCommand() = runTest {
         val engine = MockLlmEngine()
-        val service = AndroidInferenceService(engine, backgroundScope, "mockContext", StandardTestDispatcher(testScheduler))
+        val service = AndroidInferenceService(engine, FakeModelRepository(), backgroundScope, "mockContext", StandardTestDispatcher(testScheduler))
         
         // Test Audio command
         val audioData = ByteArray(1024)

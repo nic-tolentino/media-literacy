@@ -15,6 +15,8 @@ class TranscriptDeduplicationTest {
         inferenceService = object : InferenceService {
             override val state: StateFlow<EngineInternalState> = MutableStateFlow(EngineInternalState.Idle)
             override val metrics: Flow<InferenceMetrics> = emptyFlow()
+            override val modelRepository: ModelRepository = FakeModelRepository()
+            override suspend fun resetEngine() {}
             override fun execute(command: InferenceCommand) = error("Not needed")
         },
         repository = object : AnalysisRepository {
