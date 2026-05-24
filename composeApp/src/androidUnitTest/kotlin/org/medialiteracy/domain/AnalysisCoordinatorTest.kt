@@ -27,7 +27,7 @@ class AnalysisCoordinatorTest {
         val service = AndroidInferenceService(engine, FakeModelRepository(), backgroundScope, "mockContext", StandardTestDispatcher(testScheduler))
         val coordinator = AnalysisCoordinator(service, MockRepository(), backgroundScope)
         
-        val longArticle = "A".repeat(8001)
+        val longArticle = "A".repeat(AppConfig.MAX_ARTICLE_LENGTH + 1)
         coordinator.startAnalysis(longArticle)
         
         advanceUntilIdle()
@@ -38,16 +38,18 @@ class AnalysisCoordinatorTest {
     @Test
     fun testTwoStagePipeline() = runTest {
         val engine = MockLlmEngine()
+        // Prime Stage
+        engine.enqueueTokens(listOf("Ready"))
         // Stage 1 Summary
         engine.enqueueTokens(listOf("""{"summary": "Stage 1 Summary", "objectivityScore": 100, "logicScore": 100, "evidenceQuality": 100, "credibilityScore": 100, "credibility": "G", "primaryStrength": "S", "observationArea": "A"}"""))
         // Stage 2 Claims
         engine.enqueueTokens(listOf("""{"keyClaims": ["Claim 1"]}"""))
         // Stage 3 Metrics
         engine.enqueueTokens(listOf("""{"objectivityScore": 100, "logicScore": 100, "evidenceQuality": 100, "credibilityScore": 100, "credibility": "G"}"""))
-        // Stage 4 Fallacies
-        engine.enqueueTokens(listOf("#### 1. FallacyName\n* **Instance:** Quote\n* **Analysis:** Deconstruction"))
-        // Stage 5 Socratic
+        // Stage 4 Socratic
         engine.enqueueTokens(listOf("""{"socraticQuestions": ["Question 1"]}"""))
+        // Stage 5 Fallacies
+        engine.enqueueTokens(listOf("#### 1. FallacyName\n* **Instance:** Quote\n* **Analysis:** Deconstruction"))
 
         // Using a dedicated scope for the test to avoid interference
         val testDispatcher = StandardTestDispatcher(testScheduler)
@@ -138,8 +140,20 @@ class AnalysisCoordinatorTest {
         engine.enqueueTokens(listOf("""{"timestamp": "00:00-00:25", "dominantTone": "Calm", "keyClaims": ["C1"], "fallacies": [], "objectivityScore": 90, "logicScore": 90}"""))
         // 2. Chunk 2 Observation
         engine.enqueueTokens(listOf("""{"timestamp": "00:20-00:40", "dominantTone": "Rushed", "keyClaims": ["C2"], "fallacies": [], "objectivityScore": 60, "logicScore": 70}"""))
-        // 3. Final Synthesis
+        // 3. Prime Stage
+        engine.enqueueTokens(listOf("Ready"))
+        // 4. Final Synthesis Summary
         engine.enqueueTokens(listOf("""{"summary": "Unified Audio Analysis", "objectivityScore": 75, "logicScore": 80, "evidenceQuality": 80, "credibilityScore": 80, "credibility": "Mixed", "primaryStrength": "None", "observationArea": "Tone"}"""))
+        // 5. Claims
+        engine.enqueueTokens(listOf("""{"keyClaims": ["C1", "C2"]}"""))
+        // 6. Metrics
+        engine.enqueueTokens(listOf("""{"objectivityScore": 75, "logicScore": 80, "evidenceQuality": 80, "credibilityScore": 80, "credibility": "Mixed"}"""))
+        // 7. Vocal Tone
+        engine.enqueueTokens(listOf("""{"vocalTone": "Calm shifting to Rushed"}"""))
+        // 8. Socratic Questions
+        engine.enqueueTokens(listOf("""{"socraticQuestions": ["Socratic Q1"]}"""))
+        // 9. Fallacies
+        engine.enqueueTokens(listOf("#### 1. Audio Fallacy\n* **Instance:** Quote\n* **Analysis:** Deconstruction"))
 
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val testScope = CoroutineScope(testDispatcher + Job())
@@ -173,13 +187,17 @@ class AnalysisCoordinatorTest {
         val engine = MockLlmEngine()
         // Stage 0 Multimodal Transcription
         engine.enqueueTokens(listOf("""{"fullTranscript": "Image Analysis Result"}"""))
+        // Prime Stage
+        engine.enqueueTokens(listOf("Ready"))
         // Stage 1 Summary
         engine.enqueueTokens(listOf("""{"summary": "Image Analysis Result", "objectivityScore": 85, "logicScore": 85, "evidenceQuality": 85, "credibilityScore": 85, "credibility": "Trustworthy", "primaryStrength": "Visual Evidence", "observationArea": "None"}"""))
         // Stage 2 Claims
         engine.enqueueTokens(listOf("""{"keyClaims": ["Claim 1"]}"""))
         // Stage 3 Metrics
         engine.enqueueTokens(listOf("""{"objectivityScore": 85, "logicScore": 85, "evidenceQuality": 85, "credibilityScore": 85, "credibility": "Trustworthy"}"""))
-        // Stage 4 Fallacies
+        // Stage 4 Socratic Questions
+        engine.enqueueTokens(listOf("""{"socraticQuestions": ["Socratic Q1"]}"""))
+        // Stage 5 Fallacies
         engine.enqueueTokens(listOf("#### 1. FallacyName\n* **Instance:** Quote\n* **Analysis:** Deconstruction"))
 
         val testDispatcher = StandardTestDispatcher(testScheduler)
@@ -201,6 +219,6 @@ class AnalysisCoordinatorTest {
         assertEquals(1, repository.savedCount, "Image analysis should be saved to history")
         assertTrue(repository.lastSaved?.originalArticleText?.contains("Image Analysis") == true)
         
-        testScope.cancel()
     }
 }
+

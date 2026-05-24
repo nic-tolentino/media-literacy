@@ -75,6 +75,18 @@ data class AnalysisScreen(
             }
         }
 
+        var socraticNavigated by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+
+        LaunchedEffect(state) {
+            when {
+                state is InferenceState.Thinking -> socraticNavigated = false
+                state is InferenceState.Complete && orchestrator.isFreshAnalysis && !socraticNavigated -> {
+                    socraticNavigated = true
+                    navigator.replace(SocraticChallengeScreen())
+                }
+            }
+        }
+
         Scaffold(
             topBar = {
                 NewsDecoderHeader { navigator.pop() }
@@ -91,8 +103,8 @@ data class AnalysisScreen(
                             result = s.result,
                             onLogicHatClick = { initialPrompt ->
                                 navigator.push(ChatScreen(
-                                    articleText = inputText, 
-                                    analysisResult = s.result, 
+                                    articleText = inputText,
+                                    analysisResult = s.result,
                                     initialMessage = initialPrompt
                                 ))
                             },
@@ -106,6 +118,9 @@ data class AnalysisScreen(
                                         orchestrator.startAnalysis(modifiedText)
                                     }
                                 ))
+                            },
+                            onSocraticClick = {
+                                navigator.push(SocraticChallengeScreen(isReengagement = true))
                             }
                         )
                     }
@@ -154,10 +169,11 @@ fun NewsDecoderHeader(onClose: () -> Unit) {
 
 @Composable
 fun ReportContent(
-    result: AnalysisResult, 
+    result: AnalysisResult,
     onLogicHatClick: (String) -> Unit,
     onTacticClick: (String) -> Unit = {},
-    onReRunClick: (String?) -> Unit = {}
+    onReRunClick: (String?) -> Unit = {},
+    onSocraticClick: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
     SelectionContainer {
@@ -340,6 +356,59 @@ fun ReportContent(
             }
         }
 
+
+        // Socratic Re-engage Card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        Icons.Default.School,
+                        contentDescription = "Socratic Challenge",
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column {
+                        Text(
+                            "Socratic Learning",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Text(
+                            "Engage in structured learning, rate argument objectivity, and practice critique.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+                Button(
+                    onClick = onSocraticClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Text("Enter Classroom / Start Socratic Chat", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
 
         Text(
             "This report evaluates structural logic and rhetorical patterns. It does not verify factual accuracy.",

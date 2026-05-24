@@ -27,6 +27,19 @@ class GemmaOrchestrator : ScreenModel {
      */
     val engineState: StateFlow<EngineInternalState> = inferenceService.state
 
+    val currentArticleText: String? get() = coordinator.currentArticleText
+    val currentAnalysisResult: AnalysisResult? get() = coordinator.currentAnalysisResult
+    val isFreshAnalysis: Boolean get() = coordinator.isFreshAnalysis
+    val socraticSession: StateFlow<SocraticSession?> = coordinator.socraticSession
+
+    fun consumeFreshAnalysis() {
+        coordinator.consumeFreshAnalysis()
+    }
+
+    fun updateSocraticSession(session: SocraticSession?) {
+        coordinator.updateSocraticSession(session)
+    }
+
     fun startModelDownload(variant: ModelVariant) {
         modelRepository.startDownload(variant)
     }

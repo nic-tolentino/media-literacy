@@ -138,7 +138,7 @@ class AndroidLlmEngine : LlmEngine {
                         backend = Backend.CPU(),
                         visionBackend = Backend.CPU(),
                         audioBackend = Backend.CPU(),
-                        maxNumTokens = 4096,
+                        maxNumTokens = AppConfig.CPU_MAX_NUM_TOKENS,
                         maxNumImages = 1
                     )
                 } else {
@@ -147,7 +147,7 @@ class AndroidLlmEngine : LlmEngine {
                         backend = Backend.GPU(),
                         visionBackend = Backend.GPU(),
                         audioBackend = Backend.CPU(),
-                        maxNumTokens = 8192,
+                        maxNumTokens = AppConfig.GPU_MAX_NUM_TOKENS,
                         maxNumImages = 1
                     )
                 }
@@ -165,7 +165,7 @@ class AndroidLlmEngine : LlmEngine {
                             backend = Backend.CPU(),
                             visionBackend = Backend.CPU(),
                             audioBackend = Backend.CPU(),
-                            maxNumTokens = 2048,
+                            maxNumTokens = AppConfig.FALLBACK_CPU_MAX_NUM_TOKENS,
                             maxNumImages = 1
                         )
                         try {

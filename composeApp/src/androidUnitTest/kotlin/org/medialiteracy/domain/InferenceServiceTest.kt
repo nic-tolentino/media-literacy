@@ -59,8 +59,9 @@ class InferenceServiceTest {
         val engine = MockLlmEngine()
         val service = AndroidInferenceService(engine, FakeModelRepository(), backgroundScope, "mockContext", StandardTestDispatcher(testScheduler))
         
-        // Exceed budget (3500 tokens). Heuristic is length / 3.5.
-        engine.mockTokens = listOf("A".repeat(4000 * 4)) 
+        // Exceed budget. Heuristic is length / 4.
+        val excessTokens = AppConfig.TOKEN_BUDGET_LIMIT + 1000
+        engine.mockTokens = listOf("A".repeat(excessTokens * 4)) 
         service.execute(InferenceCommand.Analyze("large_id", "prompt")).toList()
         
         // Next command should trigger handleReset() in handleChat

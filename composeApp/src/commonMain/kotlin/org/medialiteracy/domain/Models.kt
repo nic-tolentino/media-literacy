@@ -42,6 +42,7 @@ data class AnalysisResult(
     val isClaimsLoading: Boolean = false,
     val isFallaciesLoading: Boolean = false,
     val isVocalToneLoading: Boolean = false,
+    val isSocraticLoading: Boolean = false,
     val vocalTone: String? = null,
     val keyClaims: List<String> = emptyList(),
     val socraticQuestions: List<String> = emptyList(),
@@ -77,6 +78,19 @@ data class SavedAnalysis(
     val originalArticleText: String,
     val analysisResult: AnalysisResult
 ) : SharedSerializable
+
+/**
+ * Stores the user's interactive selections during the Socratic Bridge interstitial phase.
+ *
+ * @property userObjectivityRating The objectivity rating selected by the user (1-10).
+ * @property selectedQuestionIndex The index of the Socratic question chosen for discussion (0-2).
+ * @property userStance The user's general stance on the article ("agree" or "disagree").
+ */
+data class SocraticSession(
+    val userObjectivityRating: Int? = null,
+    val selectedQuestionIndex: Int? = null,
+    val userStance: String? = null
+)
 
 /**
  * Represents the hierarchical state of the local AI inference lifecycle.

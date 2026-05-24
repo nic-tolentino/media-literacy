@@ -6,7 +6,7 @@
 * **Cactus/LiteRT Prizes**: Targeted for local-first mobile implementation using Google AI Edge.
 
 ## 2. Technical Architecture
-* **Model**: Gemma 4 E2B-IT (LiteRT-LM). Optimized for mobile (INT4 quantization).
+* **Model**: Gemma 4 E2B-IT or E4B-IT (LiteRT-LM). Optimized for mobile (INT4 quantization).
 * **Modality**: Native Multimodal (Image OCR-First, Audio, Text).
 * **Reasoning**: Gemma 4 Thinking Mode (Native Chain-of-Thought) to expose the "logic" behind fallacy detection.
 * **Engine**: **LiteRT-LM Android SDK** for optimized on-device inference.

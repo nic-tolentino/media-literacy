@@ -8,9 +8,8 @@ class AnalysisStagesTest {
 
     @Test
     fun testSummaryStagePromptBuilding() {
-        val article = "Test Article"
-        val prompt = SummaryStage.buildPrompt(article)
-        assertTrue(prompt.contains(article))
+        val prompt = SummaryStage.buildPrompt()
+        assertTrue(prompt.contains("previously provided content"))
     }
 
     @Test

@@ -13,6 +13,21 @@ MODEL_PATH=$1
 FILENAME=$(basename "$MODEL_PATH")
 PACKAGE_NAME="org.medialiteracy"
 
+# Locate ADB
+if command -v adb >/dev/null 2>&1; then
+    ADB_CMD="adb"
+elif [ -n "$ANDROID_HOME" ] && [ -x "$ANDROID_HOME/platform-tools/adb" ]; then
+    ADB_CMD="$ANDROID_HOME/platform-tools/adb"
+elif [ -n "$ANDROID_SDK_ROOT" ] && [ -x "$ANDROID_SDK_ROOT/platform-tools/adb" ]; then
+    ADB_CMD="$ANDROID_SDK_ROOT/platform-tools/adb"
+elif [ -x "$HOME/Library/Android/sdk/platform-tools/adb" ]; then
+    ADB_CMD="$HOME/Library/Android/sdk/platform-tools/adb"
+else
+    echo "Error: 'adb' command not found."
+    echo "Please ensure the Android SDK is installed and 'adb' is in your PATH, or set \$ANDROID_HOME."
+    exit 1
+fi
+
 TEMP_PATH="/data/local/tmp/$FILENAME"
 DEST_PATH="/data/data/$PACKAGE_NAME/files/$FILENAME"
 
@@ -33,13 +48,13 @@ echo "🚀 Starting high-speed model transfer for $FILENAME..."
 
 # 1. Push to temp
 echo "📦 Pushing to temporary storage..."
-adb push "$MODEL_PATH" "$TEMP_PATH"
-adb shell "chmod 666 $TEMP_PATH"
+"$ADB_CMD" push "$MODEL_PATH" "$TEMP_PATH"
+"$ADB_CMD" shell "chmod 666 $TEMP_PATH"
 
 # 2. Move to app internal storage
 echo "🔐 Moving to app internal storage (requires run-as)..."
-adb shell "run-as $PACKAGE_NAME mkdir -p files"
-if adb shell "run-as $PACKAGE_NAME cp $TEMP_PATH files/$FILENAME"; then
+"$ADB_CMD" shell "run-as $PACKAGE_NAME mkdir -p files"
+if "$ADB_CMD" shell "run-as $PACKAGE_NAME cp $TEMP_PATH files/$FILENAME"; then
     echo "📄 File copied successfully within app context."
 else
     echo "❌ Error: Failed to copy file to app context. Ensure the app is installed and debuggable."
@@ -48,7 +63,7 @@ fi
 
 # 3. Cleanup
 echo "🧹 Cleaning up..."
-adb shell rm "$TEMP_PATH"
+"$ADB_CMD" shell rm "$TEMP_PATH"
 
 echo "✅ Success! Model is now available at: $DEST_PATH"
 echo "Restart the app to initialize the engine."

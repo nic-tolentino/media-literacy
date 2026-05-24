@@ -41,6 +41,10 @@ data class ChatScreen(
         val orchestrator = rememberScreenModel { GemmaOrchestrator() }
         val listState = rememberLazyListState()
         val scope = rememberCoroutineScope()
+
+        val activeResult = analysisResult ?: orchestrator.currentAnalysisResult
+        val activeArticleText = articleText ?: orchestrator.currentArticleText
+        val socraticSessionState by orchestrator.socraticSession.collectAsState()
         
         var messageText by remember { mutableStateOf("") }
         var isGenerating by remember { mutableStateOf(false) }
@@ -49,10 +53,18 @@ data class ChatScreen(
         
         val messages = remember { 
             mutableStateListOf<ChatMessage>().apply {
-                if (initialMessage != null) {
-                    add(ChatMessage(initialMessage, true))
+                if (socraticSessionState?.selectedQuestionIndex != null) {
+                    // Question is initiated via system prompt to guide user self-reflection
+                } else if (socraticSessionState?.userObjectivityRating != null) {
+                    // Rating is sent silently as a system prompt, so we do not render a user bubble
+                } else if (socraticSessionState?.userStance != null) {
+                    // Stance is sent silently as a system prompt, so we do not render a user bubble
                 } else {
-                    add(ChatMessage("How can I help you analyze the logic and evidence in this article?", false))
+                    if (initialMessage != null) {
+                        add(ChatMessage(initialMessage, true))
+                    } else {
+                        add(ChatMessage("How can I help you analyze the logic and evidence in this article?", false))
+                    }
                 }
             }
         }
@@ -83,9 +95,34 @@ data class ChatScreen(
             )
         }
 
-        LaunchedEffect(initialMessage) {
-            if (initialMessage != null && messages.size == 1) {
+        LaunchedEffect(Unit) {
+            val session = socraticSessionState
+            if (session?.selectedQuestionIndex != null) {
+                val question = activeResult?.socraticQuestions?.getOrNull(session.selectedQuestionIndex)
+                if (question != null && messages.isEmpty()) {
+                    val prompt = "Start the classroom conversation. Ask the user for their thoughts on this question: \"$question\". Do not answer it yourself. Keep the message short and in a warm, welcoming Socratic tone."
+                    sendMessage(prompt)
+                }
+            } else if (session?.userObjectivityRating != null) {
+                val userRating = session.userObjectivityRating
+                if (messages.isEmpty()) {
+                    val prompt = "Start the classroom conversation. Acknowledge that the user rated the article's objectivity as $userRating/10. Ask them to explain the reasoning behind their rating. Do not mention any AI score. Keep the message short and Socratic."
+                    sendMessage(prompt)
+                }
+            } else if (session?.userStance != null) {
+                val stance = session.userStance
+                if (messages.isEmpty()) {
+                    val prompt = "Start the classroom conversation. Acknowledge that the user generally $stance with the article. Challenge them to examine the merits or potential flaws of this position, and ask how the evidence could be improved. Keep the message short and Socratic."
+                    sendMessage(prompt)
+                }
+            } else if (initialMessage != null && messages.size == 1) {
                 sendMessage(initialMessage)
+            }
+        }
+
+        DisposableEffect(Unit) {
+            onDispose {
+                orchestrator.updateSocraticSession(null)
             }
         }
 
@@ -96,10 +133,23 @@ data class ChatScreen(
                     tonalElevation = 2.dp,
                     color = MaterialTheme.colorScheme.surface
                 ) {
-                    TopAppBar(
-                        title = { AppBarTitle("AI Logic Analyst") },
+                    CenterAlignedTopAppBar(
+                        title = { AppBarTitle("Classroom") },
                         navigationIcon = {
                             IconButton(onClick = { navigator.pop() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+                        },
+                        actions = {
+                            if (activeResult != null) {
+                                TextButton(
+                                    onClick = { navigator.pop() }
+                                ) {
+                                    Text(
+                                        text = "View Report",
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
                         },
                         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
                     )
@@ -119,9 +169,10 @@ data class ChatScreen(
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(24.dp),
                                 enabled = !isGenerating,
-                                colors = TextFieldDefaults.textFieldColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant, 
-                                    focusedIndicatorColor = Color.Transparent, 
+                                // TODO: migrate to TextFieldDefaults.colors() once min Material3 version is bumped
+                colors = @Suppress("DEPRECATION") TextFieldDefaults.textFieldColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    focusedIndicatorColor = Color.Transparent,
                                     unfocusedIndicatorColor = Color.Transparent,
                                     cursorColor = MaterialTheme.colorScheme.primary
                                 )

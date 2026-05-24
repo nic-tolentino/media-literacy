@@ -47,7 +47,7 @@ class AndroidInferenceService(
 
     private var activeGenerationJob: Job? = null
     private var estimatedTokensUsed: Int = 0
-    private val tokenBudgetLimit = 3500 
+    private val tokenBudgetLimit = AppConfig.TOKEN_BUDGET_LIMIT 
 
     init {
         startConsumerLoop()

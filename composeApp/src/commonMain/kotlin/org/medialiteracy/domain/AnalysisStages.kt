@@ -38,8 +38,8 @@ object ImageTranscriptionStage {
 object SummaryStage {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
-    fun buildPrompt(content: String): String = """
-        Perceive and summarize this content.
+    fun buildPrompt(): String = """
+        Perceive and summarize the previously provided content.
         
         TASK:
         Provide a 2-sentence executive summary.
@@ -48,9 +48,6 @@ object SummaryStage {
         {
           "summary": "2-sentence summary"
         }
-        
-        CONTENT:
-        ${content.take(8000)} 
     """.trimIndent()
 
     fun parse(raw: String): AnalysisResult {
